@@ -25,32 +25,42 @@ const database = {
   notifications: []
 };
 
-app.post('/api/snapshot', upload.single('screenshot'), async (req, res) => {
-  const { url, userPrice, userId, hash, notificationPreference, timestamp } = req.body;
-  
-  let suggestedPrice = null;
-  if (req.file) {
-    try {
-      const { data: { text } } = await Tesseract.recognize(
-        req.file.path,
-        'eng'
-      );
-      const priceMatch = text.match(/\$[\d,]+\.?\d*/);
-      suggestedPrice = priceMatch ? priceMatch[0] : null;
-    } catch (error) {
-      console.log('OCR failed:', error);
-    }
+app.post('/api/ocr-screenshot', upload.single('screenshot'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No screenshot provided' });
   }
+  
+  try {
+    const { data: { text } } = await Tesseract.recognize(
+      req.file.path,
+      'eng'
+    );
+    const priceMatch = text.match(/\$[\d,]+\.?\d*/);
+    const detectedPrice = priceMatch ? priceMatch[0] : null;
+    
+    res.json({ 
+      success: true,
+      detectedPrice,
+      screenshotId: req.file.filename
+    });
+  } catch (error) {
+    res.json({ 
+      success: false,
+      detectedPrice: null,
+      screenshotId: req.file.filename
+    });
+  }
+});
+
+app.post('/api/save-snapshot', async (req, res) => {
+  const { url, confirmedPrice, userId, screenshotId, timestamp } = req.body;
   
   const snapshot = {
     id: crypto.randomBytes(16).toString('hex'),
     userId,
     url,
-    userEnteredPrice: userPrice,
-    suggestedPrice,
-    screenshotPath: req.file ? req.file.filename : null,
-    hash,
-    notificationPreference,
+    confirmedPrice,
+    screenshotId,
     status: 'monitoring',
     timestamp,
     createdAt: new Date().toISOString()
@@ -59,37 +69,13 @@ app.post('/api/snapshot', upload.single('screenshot'), async (req, res) => {
   database.snapshots.push(snapshot);
   res.json({ 
     success: true, 
-    message: 'Snapshot saved',
-    id: snapshot.id,
-    suggestedPrice
+    message: 'Price tracking started',
+    id: snapshot.id
   });
 });
 
 app.get('/api/admin/snapshots', (req, res) => {
   res.json(database.snapshots);
-});
-
-app.post('/api/admin/notify', async (req, res) => {
-  const { snapshotId, dealPrice, dealInfo } = req.body;
-  const snapshot = database.snapshots.find(s => s.id === snapshotId);
-  if (!snapshot) return res.status(404).json({ error: 'Not found' });
-  
-  const notification = {
-    id: crypto.randomBytes(16).toString('hex'),
-    snapshotId,
-    userId: snapshot.userId,
-    originalPrice: snapshot.userEnteredPrice,
-    dealPrice,
-    dealInfo,
-    sentAt: new Date().toISOString()
-  };
-  database.notifications.push(notification);
-  res.json({ success: true, message: 'User notified' });
-});
-
-app.get('/api/user/:userId/notifications', (req, res) => {
-  const userNotifications = database.notifications.filter(n => n.userId === req.params.userId);
-  res.json(userNotifications);
 });
 
 const PORT = process.env.PORT || 3001;
