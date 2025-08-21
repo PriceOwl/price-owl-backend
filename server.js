@@ -4,6 +4,7 @@ const multer = require('multer');
 const crypto = require('crypto');
 const fs = require('fs').promises;
 const path = require('path');
+const Tesseract = require('tesseract.js');
 require('dotenv').config();
 
 const app = express();
@@ -25,20 +26,43 @@ const database = {
 };
 
 app.post('/api/snapshot', upload.single('screenshot'), async (req, res) => {
-  const { url, price, userId, hash, notificationPreference } = req.body;
+  const { url, userPrice, userId, hash, notificationPreference, timestamp } = req.body;
+  
+  let suggestedPrice = null;
+  if (req.file) {
+    try {
+      const { data: { text } } = await Tesseract.recognize(
+        req.file.path,
+        'eng'
+      );
+      const priceMatch = text.match(/\$[\d,]+\.?\d*/);
+      suggestedPrice = priceMatch ? priceMatch[0] : null;
+    } catch (error) {
+      console.log('OCR failed:', error);
+    }
+  }
+  
   const snapshot = {
     id: crypto.randomBytes(16).toString('hex'),
     userId,
     url,
-    price,
+    userEnteredPrice: userPrice,
+    suggestedPrice,
     screenshotPath: req.file ? req.file.filename : null,
     hash,
     notificationPreference,
     status: 'monitoring',
+    timestamp,
     createdAt: new Date().toISOString()
   };
+  
   database.snapshots.push(snapshot);
-  res.json({ success: true, message: 'Price snapshot captured', id: snapshot.id });
+  res.json({ 
+    success: true, 
+    message: 'Snapshot saved',
+    id: snapshot.id,
+    suggestedPrice
+  });
 });
 
 app.get('/api/admin/snapshots', (req, res) => {
@@ -54,7 +78,7 @@ app.post('/api/admin/notify', async (req, res) => {
     id: crypto.randomBytes(16).toString('hex'),
     snapshotId,
     userId: snapshot.userId,
-    originalPrice: snapshot.price,
+    originalPrice: snapshot.userEnteredPrice,
     dealPrice,
     dealInfo,
     sentAt: new Date().toISOString()
@@ -68,7 +92,7 @@ app.get('/api/user/:userId/notifications', (req, res) => {
   res.json(userNotifications);
 });
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`Backend running on http://localhost:${PORT}`);
+  console.log(`Backend running on port ${PORT}`);
 });
