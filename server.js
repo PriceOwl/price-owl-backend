@@ -12,12 +12,45 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
-// Serve admin dashboard
+// Simple admin authentication
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+let adminSessions = new Set();
+
+// Serve admin login
 app.get('/admin', (req, res) => {
-  res.redirect('/admin/');
+  res.send(`
+    <html>
+      <head><title>Price Owl Admin Login</title></head>
+      <body style="font-family: Arial; background: #1a1a2e; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
+        <div style="background: #0f3460; padding: 40px; border-radius: 12px; text-align: center;">
+          <h1>🦉 Price Owl Admin</h1>
+          <form method="POST" action="/admin/login">
+            <input type="password" name="password" placeholder="Admin Password" style="padding: 12px; margin: 10px; border: none; border-radius: 5px; width: 200px;">
+            <br>
+            <button type="submit" style="padding: 12px 24px; background: #667eea; color: white; border: none; border-radius: 5px; cursor: pointer;">Login</button>
+          </form>
+        </div>
+      </body>
+    </html>
+  `);
 });
 
-app.get('/admin/', (req, res) => {
+app.post('/admin/login', express.urlencoded({ extended: true }), (req, res) => {
+  if (req.body.password === ADMIN_PASSWORD) {
+    const sessionId = crypto.randomBytes(16).toString('hex');
+    adminSessions.add(sessionId);
+    res.cookie('admin_session', sessionId);
+    res.redirect('/admin/dashboard');
+  } else {
+    res.redirect('/admin?error=invalid');
+  }
+});
+
+app.get('/admin/dashboard', (req, res) => {
+  const sessionId = req.headers.cookie?.split('admin_session=')[1]?.split(';')[0];
+  if (!sessionId || !adminSessions.has(sessionId)) {
+    return res.redirect('/admin');
+  }
   const path = require('path');
   res.sendFile(path.join(__dirname, '../admin/index.html'));
 });
@@ -30,10 +63,31 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-const database = {
+// File-based database for persistence
+const path = require('path');
+const DATABASE_FILE = path.join(__dirname, 'database.json');
+
+let database = {
   captures: [],
   notifications: []
 };
+
+// Load existing data
+try {
+  const data = require('fs').readFileSync(DATABASE_FILE, 'utf8');
+  database = JSON.parse(data);
+} catch (error) {
+  console.log('No existing database file, starting fresh');
+}
+
+// Save database function
+function saveDatabase() {
+  try {
+    require('fs').writeFileSync(DATABASE_FILE, JSON.stringify(database, null, 2));
+  } catch (error) {
+    console.error('Failed to save database:', error);
+  }
+}
 
 // Email setup (using Gmail - replace with your service)
 const emailTransporter = nodemailer.createTransport({
@@ -100,6 +154,9 @@ app.post('/api/confirm-capture', async (req, res) => {
   };
   
   database.captures.push(capture);
+  saveDatabase(); // Persist to file
+  
+  console.log('New capture saved:', capture.id, capture.url, capture.confirmedPrice);
   
   res.json({
     success: true,
