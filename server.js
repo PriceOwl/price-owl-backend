@@ -12,6 +12,15 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
+// Serve admin dashboard
+app.get('/admin', (req, res) => {
+  res.redirect('/admin/');
+});
+
+app.get('/admin/', (req, res) => {
+  const path = require('path');
+  res.sendFile(path.join(__dirname, '../admin/index.html'));
+});
 
 const storage = multer.diskStorage({
   destination: './uploads/',
@@ -27,7 +36,7 @@ const database = {
 };
 
 // Email setup (using Gmail - replace with your service)
-const emailTransporter = nodemailer.createTransporter({
+const emailTransporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER || 'your-email@gmail.com',
