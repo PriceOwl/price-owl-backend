@@ -140,7 +140,7 @@ app.post('/api/capture-screenshot', upload.single('screenshot'), async (req, res
 });
 
 app.post('/api/confirm-capture', async (req, res) => {
-  const { captureId, confirmedPrice, userId, url, timestamp, notificationPrefs } = req.body;
+  const { captureId, confirmedPrice, userId, url, timestamp, notificationPrefs, userEmail, userPhone } = req.body;
   
   const capture = {
     id: captureId,
@@ -149,6 +149,8 @@ app.post('/api/confirm-capture', async (req, res) => {
     confirmedPrice: confirmedPrice,
     timestamp: timestamp,
     notificationPrefs: notificationPrefs,
+    userEmail: userEmail,
+    userPhone: userPhone,
     status: 'monitoring',
     createdAt: new Date().toISOString()
   };
