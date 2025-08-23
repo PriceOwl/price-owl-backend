@@ -550,10 +550,10 @@ app.post('/api/confirm-capture', async (req, res) => {
   console.log('=== CAPTURE REQUEST ===');
   console.log('Debug info:', debugInfo);
   
-  const { captureId, confirmedPrice, userId, url, timestamp, notificationPrefs, userEmail, userPhone, screenshot } = req.body;
+  const { id, captureId, confirmedPrice, userId, url, timestamp, notificationPrefs, userEmail, userPhone, screenshot } = req.body;
   
   const capture = {
-    id: captureId,
+    id: id || captureId, // Accept either 'id' or 'captureId' for compatibility
     userId: userId,
     url: url,
     confirmedPrice: confirmedPrice,
