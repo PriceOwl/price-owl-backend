@@ -713,44 +713,6 @@ app.post('/api/admin/send-notification', async (req, res) => {
   });
 });
 
-// Create setup intent for PayPal
-app.post('/api/create-setup-intent', async (req, res) => {
-  try {
-    console.log('Creating Setup Intent...');
-    console.log('Stripe key exists:', !!process.env.STRIPE_SECRET_KEY);
-    
-    // Try with PayPal first
-    let intent;
-    try {
-      intent = await stripe.setupIntents.create({
-        payment_method_types: ['card', 'paypal'],
-        usage: 'off_session'
-      });
-      console.log('✅ Setup Intent created with PayPal support:', intent.payment_method_types);
-    } catch (paypalError) {
-      console.log('❌ PayPal not available:', paypalError.message);
-      console.log('PayPal error code:', paypalError.code);
-      console.log('PayPal error type:', paypalError.type);
-      
-      // Fallback to card-only if PayPal is not enabled
-      intent = await stripe.setupIntents.create({
-        payment_method_types: ['card'],
-        usage: 'off_session'
-      });
-      console.log('✅ Card-only setup intent created:', intent.payment_method_types);
-    }
-    
-    res.json({
-      client_secret: intent.client_secret,
-      payment_method_types: intent.payment_method_types
-    });
-  } catch (error) {
-    console.error('❌ Setup Intent creation failed:', error.message);
-    console.error('Error code:', error.code);
-    console.error('Error type:', error.type);
-    res.status(500).json({ error: 'Failed to create payment setup' });
-  }
-});
 
 // Create Stripe subscription
 app.post('/api/create-subscription', async (req, res) => {
@@ -970,11 +932,16 @@ app.get('/subscribe', (req, res) => {
       
       <div class="form-group">
         <label for="payment-element">Payment Information</label>
-        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 8px; padding: 8px; background: #f8f9fa; border-radius: 6px;">
-          <span style="font-size: 12px; color: #666; font-weight: 500;">Accepted:</span>
-          <img src="data:image/svg+xml,%3csvg width='40' height='24' viewBox='0 0 40 24' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='40' height='24' rx='4' fill='%23fff'/%3e%3cpath d='M17.994 12.25h-3.507L16.29 6.004h1.704v6.246zm5.346-6.246v6.246h-1.584V7.65h-1.38l-.24 1.08H18.57l.516-1.914h3.468l.786-1.562z' fill='%234169a8'/%3e%3cpath d='M14.487 18.004L16.29 12.75h3.507v5.254H14.487z' fill='%23ffa000'/%3e%3c/svg%3e" alt="Visa" style="height: 24px; border: 1px solid #ddd; border-radius: 4px;">
-          <img src="data:image/svg+xml,%3csvg width='40' height='24' viewBox='0 0 40 24' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='40' height='24' rx='4' fill='%23fff'/%3e%3ccircle cx='15.5' cy='12' r='7' fill='%23eb001b'/%3e%3ccircle cx='24.5' cy='12' r='7' fill='%23f79e1b'/%3e%3cpath d='M20 5.929A6.97 6.97 0 0 0 15.5 12A6.97 6.97 0 0 0 20 18.071A6.97 6.97 0 0 0 24.5 12A6.97 6.97 0 0 0 20 5.929z' fill='%23ff5f00'/%3e%3c/svg%3e" alt="Mastercard" style="height: 24px; border: 1px solid #ddd; border-radius: 4px;">
-          <img src="https://www.paypalobjects.com/webstatic/mktg/Logo/pp-logo-100px.png" alt="PayPal" style="height: 24px; border: 1px solid #ddd; border-radius: 4px; background: white; padding: 2px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; padding: 8px; background: #f8f9fa; border-radius: 6px;">
+          <div style="display: flex; align-items: center; gap: 15px;">
+            <span style="font-size: 12px; color: #666; font-weight: 500;">Accepted:</span>
+            <img src="data:image/svg+xml,%3csvg width='40' height='24' viewBox='0 0 40 24' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='40' height='24' rx='4' fill='%23fff'/%3e%3cpath d='M17.994 12.25h-3.507L16.29 6.004h1.704v6.246zm5.346-6.246v6.246h-1.584V7.65h-1.38l-.24 1.08H18.57l.516-1.914h3.468l.786-1.562z' fill='%234169a8'/%3e%3cpath d='M14.487 18.004L16.29 12.75h3.507v5.254H14.487z' fill='%23ffa000'/%3e%3c/svg%3e" alt="Visa" style="height: 24px; border: 1px solid #ddd; border-radius: 4px;">
+            <img src="data:image/svg+xml,%3csvg width='40' height='24' viewBox='0 0 40 24' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='40' height='24' rx='4' fill='%23fff'/%3e%3ccircle cx='15.5' cy='12' r='7' fill='%23eb001b'/%3e%3ccircle cx='24.5' cy='12' r='7' fill='%23f79e1b'/%3e%3cpath d='M20 5.929A6.97 6.97 0 0 0 15.5 12A6.97 6.97 0 0 0 20 18.071A6.97 6.97 0 0 0 24.5 12A6.97 6.97 0 0 0 20 5.929z' fill='%23ff5f00'/%3e%3c/svg%3e" alt="Mastercard" style="height: 24px; border: 1px solid #ddd; border-radius: 4px;">
+          </div>
+          <div style="display: flex; align-items: center; gap: 5px;">
+            <span style="font-size: 11px; color: #999;">Secured by</span>
+            <img src="data:image/svg+xml,%3csvg width='50' height='20' viewBox='0 0 50 20' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M6.24 3.32h-.24c-.64 0-1.12.24-1.52.64-.32.32-.48.72-.48 1.2 0 .48.16.88.48 1.2.4.4.88.64 1.52.64h.24c.64 0 1.12-.24 1.52-.64.32-.32.48-.72.48-1.2 0-.48-.16-.88-.48-1.2-.4-.4-.88-.64-1.52-.64zm11.36 0c-.72 0-1.36.24-1.84.72-.48.48-.72 1.12-.72 1.84 0 .72.24 1.36.72 1.84.48.48 1.12.72 1.84.72s1.36-.24 1.84-.72c.48-.48.72-1.12.72-1.84 0-.72-.24-1.36-.72-1.84-.48-.48-1.12-.72-1.84-.72z' fill='%23635bff'/%3e%3cpath d='M25.28 14.08V9.2c0-.32-.08-.56-.24-.72-.16-.16-.4-.24-.72-.24-.32 0-.56.08-.72.24-.16.16-.24.4-.24.72v4.88h-1.6V7.84h1.52v.72c.32-.56.8-.84 1.44-.84.64 0 1.12.2 1.44.6.32.4.48.92.48 1.56v4.2h-1.36z' fill='%23635bff'/%3e%3ctext x='32' y='12' font-family='Arial' font-size='10' fill='%23635bff'%3eStripe%3c/text%3e%3c/svg%3e" alt="Stripe" style="height: 16px; opacity: 0.7;">
+          </div>
         </div>
         <div id="payment-element" style="padding: 12px; border: 2px solid #ddd; border-radius: 8px; background: white; min-height: 60px;">
           <!-- Stripe Payment Element (includes Card, PayPal, etc.) -->
@@ -1007,30 +974,10 @@ app.get('/subscribe', (req, res) => {
     
     async function initializePayments() {
     try {
-      console.log('Initializing Payment Element with PayPal...');
+      console.log('Initializing Stripe card payments...');
       
-      // Create setup intent for PayPal support
-      const response = await fetch('/api/create-setup-intent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currency: 'usd' })
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Setup Intent API error:', response.status, errorText);
-        throw new Error('Setup Intent failed with status ' + response.status);
-      }
-      
-      const result = await response.json();
-      client_secret = result.client_secret;
-      
-      console.log('✅ Setup Intent created:', result);
-      console.log('Available payment methods:', result.payment_method_types);
-      
-      // Create Payment Element with PayPal support
+      // Use simple card element - reliable and secure
       elements = stripe.elements({
-        clientSecret: client_secret,
         appearance: {
           theme: 'stripe',
           variables: {
@@ -1039,41 +986,28 @@ app.get('/subscribe', (req, res) => {
         }
       });
       
-      paymentElement = elements.create('payment', {
-        layout: 'tabs',
-        paymentMethodOrder: ['card', 'paypal'],
+      paymentElement = elements.create('card', {
+        style: {
+          base: {
+            fontSize: '16px',
+            color: '#424770',
+            '::placeholder': {
+              color: '#aab7c4',
+            },
+          },
+        },
       });
       
       paymentElement.mount('#payment-element');
       const loadingEl = document.getElementById('payment-loading');
       if (loadingEl) loadingEl.style.display = 'none';
-      console.log('Payment Element with PayPal loaded successfully');
+      console.log('✅ Stripe card element loaded successfully');
     } catch (error) {
-      console.log('PayPal not available, falling back to card only:', error);
-      // Fallback to card-only if PayPal fails
-      try {
-        elements = stripe.elements();
-        paymentElement = elements.create('card', {
-          style: {
-            base: {
-              fontSize: '16px',
-              color: '#424770',
-              '::placeholder': {
-                color: '#aab7c4',
-              },
-            },
-          },
-        });
-        paymentElement.mount('#payment-element');
-        const loadingEl = document.getElementById('payment-loading');
-        if (loadingEl) loadingEl.style.display = 'none';
-      } catch (fallbackError) {
-        console.error('Card fallback failed:', fallbackError);
-        const errorEl = document.getElementById('payment-errors');
-        if (errorEl) errorEl.textContent = 'Payment form failed to load. Please refresh and try again.';
-        const loadingEl = document.getElementById('payment-loading');
-        if (loadingEl) loadingEl.innerHTML = 'Payment form failed to load. Please refresh the page.';
-      }
+      console.error('❌ Payment form failed to load:', error);
+      const errorEl = document.getElementById('payment-errors');
+      if (errorEl) errorEl.textContent = 'Payment form failed to load. Please refresh and try again.';
+      const loadingEl = document.getElementById('payment-loading');
+      if (loadingEl) loadingEl.innerHTML = 'Payment form failed to load. Please refresh the page.';
     }
     }
     
@@ -1093,13 +1027,14 @@ app.get('/subscribe', (req, res) => {
       const phone = document.getElementById('phone').value;
       
       try {
-        // Confirm setup with Payment Element (supports both card and PayPal)
-        const {error} = await stripe.confirmSetup({
-          elements,
-          confirmParams: {
-            return_url: window.location.origin + '/subscription-success',
+        // Create payment method with card element - simple and reliable
+        const {error, paymentMethod} = await stripe.createPaymentMethod({
+          type: 'card',
+          card: paymentElement,
+          billing_details: {
+            email: email,
+            phone: phone,
           },
-          redirect: 'if_required'
         });
         
         if (error) {
@@ -1108,10 +1043,6 @@ app.get('/subscribe', (req, res) => {
           submitBtn.disabled = false;
           return;
         }
-        
-        // Get the setup intent to extract payment method
-        const setupIntent = await stripe.retrieveSetupIntent(client_secret);
-        const paymentMethod = setupIntent.setupIntent.payment_method;
         
         // Create subscription
         const response = await fetch('/api/create-subscription', {
