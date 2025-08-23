@@ -334,13 +334,7 @@ app.get('/admin/dashboard', (req, res) => {
           refreshBtn.style.transform = 'scale(1)';
           refreshBtn.disabled = false;
           
-          // Reset timestamp color
-          setTimeout(() => {
-            if (timestamp) {
-              timestamp.style.color = '#666';
-              timestamp.style.fontWeight = 'normal';
-            }
-          }, 2000);
+          // Removed timestamp reset code
         }, 1500);
         
       } catch (error) {
