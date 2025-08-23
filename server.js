@@ -10,8 +10,9 @@ require('dotenv').config();
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '100mb' })); // Increase limit for base64 images
-app.use(express.urlencoded({ limit: '100mb', extended: true }));
+// Set very high limits for screenshot uploads
+app.use(express.json({ limit: '500mb' })); // Increase limit for base64 images
+app.use(express.urlencoded({ limit: '500mb', extended: true }));
 
 // Add explicit payload size handling
 app.use((req, res, next) => {
@@ -24,6 +25,19 @@ app.use('/uploads', express.static('uploads'));
 // Simple admin authentication
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 let adminSessions = new Set();
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    version: '2.1-screenshot-fix',
+    limits: {
+      json: '500mb',
+      urlencoded: '500mb'
+    }
+  });
+});
 
 // Serve admin login
 app.get('/admin', (req, res) => {
