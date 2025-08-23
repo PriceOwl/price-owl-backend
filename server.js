@@ -921,7 +921,7 @@ app.get('/subscribe', (req, res) => {
 <body>
   <div class="container">
     <h1>🦉 Price Owl Premium</h1>
-    <p>Get automatic price tracking and instant alerts!</p>
+    <p>Get automatic price tracking and alerts!</p>
     
     <div class="price">$2.99<small>/month</small></div>
     
