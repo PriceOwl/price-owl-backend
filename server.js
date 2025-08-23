@@ -626,9 +626,29 @@ app.get('/api/test-debug', (req, res) => {
   });
 });
 
-app.get('/api/user/:userId/captures', (req, res) => {
-  const userCaptures = database.captures.filter(c => c.userId === req.params.userId);
-  res.json(userCaptures);
+// User endpoint to get their captures only
+app.get('/api/user-captures/:userId', (req, res) => {
+  const userId = req.params.userId;
+  console.log('=== USER CAPTURES ENDPOINT ===');
+  console.log('Requested userId:', userId);
+  
+  // Get active captures for this specific user
+  const userCaptures = database.captures.filter(capture => {
+    const isActive = !capture.status || 
+                     capture.status === 'monitoring' || 
+                     capture.status === 'active' || 
+                     (capture.status !== 'stopped' && capture.status !== 'deleted');
+    const isThisUser = capture.userId === userId;
+    return isActive && isThisUser;
+  });
+  
+  // Sort by most recent first and limit to 3
+  const sortedCaptures = userCaptures
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+    .slice(0, 3);
+  
+  console.log('User captures found:', userCaptures.length, 'total, returning:', sortedCaptures.length);
+  res.json(sortedCaptures);
 });
 
 app.get('/api/admin/all-captures', (req, res) => {
