@@ -713,6 +713,23 @@ app.post('/api/admin/send-notification', async (req, res) => {
   });
 });
 
+// Create setup intent for PayPal
+app.post('/api/create-setup-intent', async (req, res) => {
+  try {
+    const intent = await stripe.setupIntents.create({
+      payment_method_types: ['card', 'paypal'],
+      usage: 'off_session'
+    });
+    
+    res.json({
+      client_secret: intent.client_secret
+    });
+  } catch (error) {
+    console.error('Setup Intent creation error:', error);
+    res.status(400).json({ error: error.message });
+  }
+});
+
 // Create Stripe subscription
 app.post('/api/create-subscription', async (req, res) => {
   try {
@@ -941,14 +958,19 @@ app.get('/subscribe', (req, res) => {
       
       <div class="form-group">
         <label for="payment-element">Payment Information</label>
-        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 8px; padding: 8px; background: #f8f9fa; border-radius: 6px;">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px; padding: 8px; background: #f8f9fa; border-radius: 6px; flex-wrap: wrap;">
           <span style="font-size: 12px; color: #666; font-weight: 500;">Accepted:</span>
-          <img src="https://js.stripe.com/v3/fingerprinted/img/visa-729c05c240c4bdb47b03ac81d9945bfe.svg" alt="Visa" style="height: 20px;">
-          <img src="https://js.stripe.com/v3/fingerprinted/img/mastercard-4d8844094130711885b5e41b28c9848f.svg" alt="Mastercard" style="height: 20px;">
-          <img src="https://js.stripe.com/v3/fingerprinted/img/amex-a49b82f46c5cd6a96a6e418a6ca1717c.svg" alt="American Express" style="height: 20px;">
-          <img src="https://www.paypalobjects.com/webstatic/mktg/Logo/pp-logo-100px.png" alt="PayPal" style="height: 20px;">
-          <img src="https://js.stripe.com/v3/fingerprinted/img/apple_pay-f6db0077dc7c325b4b8c8c1d7b2dd113.svg" alt="Apple Pay" style="height: 20px;">
-          <img src="https://js.stripe.com/v3/fingerprinted/img/google_pay-c66a29c04080a1a39cfc2a1a14a0ddb2.svg" alt="Google Pay" style="height: 20px;">
+          <img src="data:image/svg+xml,%3csvg width='40' height='24' viewBox='0 0 40 24' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='40' height='24' rx='4' fill='%23fff'/%3e%3cpath d='M17.994 12.25h-3.507L16.29 6.004h1.704v6.246zm5.346-6.246v6.246h-1.584V7.65h-1.38l-.24 1.08H18.57l.516-1.914h3.468l.786-1.562z' fill='%234169a8'/%3e%3cpath d='M14.487 18.004L16.29 12.75h3.507v5.254H14.487z' fill='%23ffa000'/%3e%3c/svg%3e" alt="Visa" style="height: 24px; border: 1px solid #ddd; border-radius: 4px;">
+          <img src="data:image/svg+xml,%3csvg width='40' height='24' viewBox='0 0 40 24' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='40' height='24' rx='4' fill='%23fff'/%3e%3ccircle cx='15.5' cy='12' r='7' fill='%23eb001b'/%3e%3ccircle cx='24.5' cy='12' r='7' fill='%23f79e1b'/%3e%3cpath d='M20 5.929A6.97 6.97 0 0 0 15.5 12A6.97 6.97 0 0 0 20 18.071A6.97 6.97 0 0 0 24.5 12A6.97 6.97 0 0 0 20 5.929z' fill='%23ff5f00'/%3e%3c/svg%3e" alt="Mastercard" style="height: 24px; border: 1px solid #ddd; border-radius: 4px;">
+          <img src="data:image/svg+xml,%3csvg width='40' height='24' viewBox='0 0 40 24' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='40' height='24' rx='4' fill='%2300579f'/%3e%3cpath d='M8.971 17.778c.41 0 .775-.175 1.096-.527l-.657-.722a1.07 1.07 0 0 1-.768.29c-.592 0-1.072-.48-1.072-1.072 0-.592.48-1.072 1.072-1.072.281 0 .537.112.768.29l.657-.722c-.321-.352-.686-.527-1.096-.527C7.435 13.716 6.222 14.93 6.222 16.466c0 1.536 1.213 2.75 2.749 2.75v.562zm4.293-4.062v1.312h.657v-1.312h1.312v-.657h-1.312V12.75h-.657v1.309h-1.312v.657h1.312z' fill='white'/%3e%3c/svg%3e" alt="American Express" style="height: 24px; border: 1px solid #ddd; border-radius: 4px;">
+          <img src="data:image/svg+xml,%3csvg width='40' height='24' viewBox='0 0 40 24' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='40' height='24' rx='4' fill='%23003087'/%3e%3cpath d='M17.12 15.1c-1.253-.325-1.506-.487-1.506-.779 0-.292.292-.487.812-.487.487 0 .812.195.877.585h1.318c-.097-1.123-.91-1.708-2.195-1.708-1.285 0-2.133.65-2.133 1.643 0 1.026.65 1.383 1.968 1.74 1.123.292 1.383.487 1.383.812 0 .325-.325.552-.877.552-.65 0-1.025-.26-1.09-.747h-1.383c.13 1.188 1.058 1.87 2.473 1.87 1.448 0 2.26-.747 2.26-1.74 0-.942-.585-1.383-1.904-1.741z' fill='white'/%3e%3cpath d='M6.5 8.5h7v7h-7z' fill='%23009cde'/%3e%3cpath d='M26.5 8.5h7v7h-7z' fill='%23012169'/%3e%3c/svg%3e" alt="PayPal" style="height: 24px; border: 1px solid #ddd; border-radius: 4px;">
+          <div style="display: inline-flex; align-items: center; padding: 2px 8px; background: black; border-radius: 4px; height: 20px;">
+            <span style="color: white; font-size: 12px; font-weight: 500;">🍎 Pay</span>
+          </div>
+          <div style="display: inline-flex; align-items: center; padding: 2px 8px; background: white; border: 1px solid #ddd; border-radius: 4px; height: 20px;">
+            <span style="color: #4285f4; font-size: 12px; font-weight: 500;">G</span>
+            <span style="color: #ea4335; font-size: 12px; font-weight: 500;"> Pay</span>
+          </div>
         </div>
         <div id="payment-element" style="padding: 12px; border: 2px solid #ddd; border-radius: 8px; background: white; min-height: 60px;">
           <!-- Stripe Payment Element (includes Card, PayPal, etc.) -->
@@ -975,22 +997,32 @@ app.get('/subscribe', (req, res) => {
     const stripe = Stripe('${process.env.STRIPE_PUBLISHABLE_KEY}');
     
     // First try to create with PayPal, fallback to card only if it fails
-    let elements, paymentElement;
+    let elements, paymentElement, client_secret;
     
+    async function initializePayments() {
     try {
+      // Create client secret for PayPal (required for Payment Element)
+      const response = await fetch('/api/create-setup-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currency: 'usd' })
+      });
+      const result = await response.json();
+      client_secret = result.client_secret;
+      
       elements = stripe.elements({
-        mode: 'subscription',
-        amount: 299, // $2.99 in cents
-        currency: 'usd',
-        payment_method_types: ['card', 'paypal'],
+        clientSecret: client_secret,
+        appearance: {
+          theme: 'stripe',
+          variables: {
+            colorPrimary: '#667eea',
+          }
+        }
       });
       
       paymentElement = elements.create('payment', {
         layout: 'tabs',
-        wallets: {
-          applePay: 'auto',
-          googlePay: 'auto',
-        },
+        paymentMethodOrder: ['card', 'paypal', 'apple_pay', 'google_pay']
       });
       
       paymentElement.mount('#payment-element').then(() => {
@@ -1015,18 +1047,13 @@ app.get('/subscribe', (req, res) => {
       paymentElement.mount('#payment-element');
       document.getElementById('payment-loading').style.display = 'none';
     }
+    }
     
-    // Handle real-time validation errors from the Payment Element
-    paymentElement.on('change', function(event) {
-      const displayError = document.getElementById('payment-errors');
-      if (event.error) {
-        displayError.textContent = event.error.message;
-      } else {
-        displayError.textContent = '';
-      }
-    });
+    // Initialize payments on load
+    initializePayments();
     
     // Handle form submission
+    document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('subscriptionForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       
@@ -1038,33 +1065,14 @@ app.get('/subscribe', (req, res) => {
       const phone = document.getElementById('phone').value;
       
       try {
-        // Create payment method (works with both Payment Element and Card Element)
-        let paymentMethodResult;
-        
-        if (elements.getElement && elements.getElement('payment')) {
-          // Using Payment Element
-          paymentMethodResult = await stripe.createPaymentMethod({
-            elements,
-            params: {
-              billing_details: {
-                email: email,
-                phone: phone,
-              },
-            },
-          });
-        } else {
-          // Using Card Element fallback
-          paymentMethodResult = await stripe.createPaymentMethod({
-            type: 'card',
-            card: paymentElement,
-            billing_details: {
-              email: email,
-              phone: phone,
-            },
-          });
-        }
-        
-        const {error, paymentMethod} = paymentMethodResult;
+        // Confirm setup with Payment Element
+        const {error} = await stripe.confirmSetup({
+          elements,
+          confirmParams: {
+            return_url: window.location.origin + '/subscription-success',
+          },
+          redirect: 'if_required'
+        });
         
         if (error) {
           document.getElementById('payment-errors').textContent = error.message;
@@ -1072,6 +1080,10 @@ app.get('/subscribe', (req, res) => {
           submitBtn.disabled = false;
           return;
         }
+        
+        // Get the setup intent to extract payment method
+        const setupIntent = await stripe.retrieveSetupIntent(client_secret);
+        const paymentMethod = setupIntent.setupIntent.payment_method;
         
         // Create subscription
         const response = await fetch('/api/create-subscription', {
@@ -1115,6 +1127,7 @@ app.get('/subscribe', (req, res) => {
         submitBtn.textContent = '🚀 Subscribe Now - $2.99/month';
         submitBtn.disabled = false;
       }
+    });
     });
   </script>
 </body>
