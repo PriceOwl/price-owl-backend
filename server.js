@@ -941,9 +941,20 @@ app.get('/subscribe', (req, res) => {
       
       <div class="form-group">
         <label for="payment-element">Payment Information</label>
-        <p style="font-size: 12px; color: #666; margin-bottom: 8px;">💳 Credit/Debit Card • 🟦 PayPal • 📱 Apple Pay • 🟢 Google Pay</p>
-        <div id="payment-element" style="padding: 12px; border: 2px solid #ddd; border-radius: 8px; background: white;">
+        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 8px; padding: 8px; background: #f8f9fa; border-radius: 6px;">
+          <span style="font-size: 12px; color: #666; font-weight: 500;">Accepted:</span>
+          <img src="https://js.stripe.com/v3/fingerprinted/img/visa-729c05c240c4bdb47b03ac81d9945bfe.svg" alt="Visa" style="height: 20px;">
+          <img src="https://js.stripe.com/v3/fingerprinted/img/mastercard-4d8844094130711885b5e41b28c9848f.svg" alt="Mastercard" style="height: 20px;">
+          <img src="https://js.stripe.com/v3/fingerprinted/img/amex-a49b82f46c5cd6a96a6e418a6ca1717c.svg" alt="American Express" style="height: 20px;">
+          <img src="https://www.paypalobjects.com/webstatic/mktg/Logo/pp-logo-100px.png" alt="PayPal" style="height: 20px;">
+          <img src="https://js.stripe.com/v3/fingerprinted/img/apple_pay-f6db0077dc7c325b4b8c8c1d7b2dd113.svg" alt="Apple Pay" style="height: 20px;">
+          <img src="https://js.stripe.com/v3/fingerprinted/img/google_pay-c66a29c04080a1a39cfc2a1a14a0ddb2.svg" alt="Google Pay" style="height: 20px;">
+        </div>
+        <div id="payment-element" style="padding: 12px; border: 2px solid #ddd; border-radius: 8px; background: white; min-height: 60px;">
           <!-- Stripe Payment Element (includes Card, PayPal, etc.) -->
+          <div id="payment-loading" style="text-align: center; color: #666; padding: 20px;">
+            Loading payment options...
+          </div>
         </div>
         <div id="payment-errors" role="alert" style="color: #e74c3c; margin-top: 5px; font-size: 14px;"></div>
       </div>
@@ -962,24 +973,48 @@ app.get('/subscribe', (req, res) => {
   <script>
     // Initialize Stripe
     const stripe = Stripe('${process.env.STRIPE_PUBLISHABLE_KEY}');
-    const elements = stripe.elements({
-      mode: 'subscription',
-      amount: 299, // $2.99 in cents
-      currency: 'usd',
-      setup_future_usage: 'off_session',
-      payment_method_types: ['card', 'paypal'],
-    });
     
-    // Create payment element (includes cards, PayPal, etc.)
-    const paymentElement = elements.create('payment', {
-      wallets: {
-        applePay: 'auto',
-        googlePay: 'auto',
-      },
-      layout: 'tabs',
-    });
+    // First try to create with PayPal, fallback to card only if it fails
+    let elements, paymentElement;
     
-    paymentElement.mount('#payment-element');
+    try {
+      elements = stripe.elements({
+        mode: 'subscription',
+        amount: 299, // $2.99 in cents
+        currency: 'usd',
+        payment_method_types: ['card', 'paypal'],
+      });
+      
+      paymentElement = elements.create('payment', {
+        layout: 'tabs',
+        wallets: {
+          applePay: 'auto',
+          googlePay: 'auto',
+        },
+      });
+      
+      paymentElement.mount('#payment-element').then(() => {
+        document.getElementById('payment-loading').style.display = 'none';
+        console.log('Payment Element with PayPal loaded successfully');
+      });
+    } catch (error) {
+      console.log('PayPal not available, falling back to card only:', error);
+      // Fallback to card-only if PayPal fails
+      elements = stripe.elements();
+      paymentElement = elements.create('card', {
+        style: {
+          base: {
+            fontSize: '16px',
+            color: '#424770',
+            '::placeholder': {
+              color: '#aab7c4',
+            },
+          },
+        },
+      });
+      paymentElement.mount('#payment-element');
+      document.getElementById('payment-loading').style.display = 'none';
+    }
     
     // Handle real-time validation errors from the Payment Element
     paymentElement.on('change', function(event) {
@@ -1003,16 +1038,33 @@ app.get('/subscribe', (req, res) => {
       const phone = document.getElementById('phone').value;
       
       try {
-        // Confirm payment with the Payment Element
-        const {error, paymentMethod} = await stripe.createPaymentMethod({
-          elements,
-          params: {
+        // Create payment method (works with both Payment Element and Card Element)
+        let paymentMethodResult;
+        
+        if (elements.getElement && elements.getElement('payment')) {
+          // Using Payment Element
+          paymentMethodResult = await stripe.createPaymentMethod({
+            elements,
+            params: {
+              billing_details: {
+                email: email,
+                phone: phone,
+              },
+            },
+          });
+        } else {
+          // Using Card Element fallback
+          paymentMethodResult = await stripe.createPaymentMethod({
+            type: 'card',
+            card: paymentElement,
             billing_details: {
               email: email,
               phone: phone,
             },
-          },
-        });
+          });
+        }
+        
+        const {error, paymentMethod} = paymentMethodResult;
         
         if (error) {
           document.getElementById('payment-errors').textContent = error.message;
