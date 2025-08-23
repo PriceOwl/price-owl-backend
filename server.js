@@ -578,9 +578,30 @@ app.post('/api/confirm-capture', async (req, res) => {
   };
   
   database.captures.push(capture);
-  saveDatabase(); // Persist to file
   
-  console.log('New capture saved:', capture.id, capture.url, capture.confirmedPrice);
+  console.log('💾 Saving new capture to database:');
+  console.log('- Capture ID:', capture.id);
+  console.log('- URL:', capture.url);
+  console.log('- Price:', capture.confirmedPrice);
+  console.log('- Status:', capture.status);
+  console.log('- Total captures before save:', database.captures.length - 1);
+  console.log('- Total captures after save:', database.captures.length);
+  
+  // Force save to ensure persistence
+  try {
+    saveDatabase();
+    console.log('✅ Database saved successfully - capture should persist');
+    
+    // Verify the capture was actually saved
+    const savedCapture = database.captures.find(c => c.id === capture.id);
+    if (savedCapture) {
+      console.log('✅ Capture verified in database');
+    } else {
+      console.log('❌ WARNING: Capture not found in database after save!');
+    }
+  } catch (error) {
+    console.error('❌ Database save failed:', error);
+  }
   
   // Include debug info in response for testing
   if (req.body.debug) {
@@ -613,21 +634,36 @@ app.get('/api/user/:userId/captures', (req, res) => {
 app.get('/api/admin/all-captures', (req, res) => {
   console.log('=== ADMIN ENDPOINT CALLED ===');
   console.log('Current database.captures length:', database.captures.length);
+  console.log('Raw database.captures:', JSON.stringify(database.captures, null, 2));
   
-  // Filter to only show active trackings (not completed/stopped)
-  const activeCaptures = database.captures.filter(capture => 
-    !capture.status || capture.status === 'monitoring' || capture.status === 'active'
-  );
-  
-  console.log('Active captures:', activeCaptures.length);
-  console.log('Captures data:', activeCaptures);
-  
-  // Add debugging info for each capture
-  activeCaptures.forEach(capture => {
-    console.log(`Capture ${capture.id}: ${capture.url} - ${capture.confirmedPrice} (${capture.status || 'monitoring'})`);
+  // Show ALL captures for debugging
+  database.captures.forEach((capture, index) => {
+    console.log(`${index + 1}. ID: ${capture.id}, URL: ${capture.url}, Price: ${capture.confirmedPrice}, Status: ${capture.status || 'monitoring'}, Created: ${capture.timestamp}`);
   });
   
+  // Return ALL active trackings (anything that's not explicitly stopped/deleted)
+  const activeCaptures = database.captures.filter(capture => {
+    // Include anything that doesn't have a status OR has monitoring/active status
+    const isActive = !capture.status || 
+                     capture.status === 'monitoring' || 
+                     capture.status === 'active' || 
+                     capture.status !== 'stopped' && capture.status !== 'deleted';
+    return isActive;
+  });
+  
+  console.log('Returning active captures:', activeCaptures.length);
+  
   res.json(activeCaptures);
+});
+
+// Debug endpoint to check database status
+app.get('/api/debug/database', (req, res) => {
+  res.json({
+    totalCaptures: database.captures.length,
+    captures: database.captures,
+    databaseFile: DATABASE_FILE,
+    fileExists: require('fs').existsSync(DATABASE_FILE)
+  });
 });
 
 // Function to generate owl-themed messages
