@@ -503,7 +503,9 @@ app.post('/api/confirm-capture', async (req, res) => {
   res.json({
     success: true,
     message: 'Hoot! Price tracking activated!',
-    ...(req.body.debug && { debug: debugInfo })
+    debug: debugInfo,
+    captureHasScreenshot: !!capture.screenshot,
+    screenshotLength: capture.screenshot?.length || 0
   });
 });
 
