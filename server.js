@@ -1012,7 +1012,7 @@ app.get('/subscribe', (req, res) => {
         
         if (error) {
           document.getElementById('card-errors').textContent = error.message;
-          submitBtn.textContent = '🚀 Subscribe Now - $1/month';
+          submitBtn.textContent = '🚀 Subscribe Now - $2.99/month';
           submitBtn.disabled = false;
           return;
         }
@@ -1049,7 +1049,7 @@ app.get('/subscribe', (req, res) => {
           window.location.href = '/subscription-success';
         } else {
           document.getElementById('card-errors').textContent = result.error;
-          submitBtn.textContent = '🚀 Subscribe Now - $1/month';
+          submitBtn.textContent = '🚀 Subscribe Now - $2.99/month';
           submitBtn.disabled = false;
         }
         
