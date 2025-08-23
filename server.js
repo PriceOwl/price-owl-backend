@@ -906,21 +906,29 @@ app.get('/subscribe', (req, res) => {
     <h1>🦉 Price Owl Premium</h1>
     <p>Get automatic price tracking and instant alerts!</p>
     
-    <div class="price">$1<small>/month</small></div>
+    <div class="price">$2.99<small>/month</small></div>
     
     <div class="features">
       <h3>✨ Premium Features</h3>
       <ul>
-        <li>🤖 Automatic daily price checking</li>
-        <li>📧 Instant email alerts when prices drop</li>
-        <li>📱 SMS notifications for urgent deals</li>
-        <li>🔔 Real-time deal notifications</li>
-        <li>🎯 Advanced price tracking algorithms</li>
+        <li>Daily price checking</li>
+        <li>📧 Email alerts when there are deals</li>
+        <li>📱 SMS notifications when there are deals</li>
         <li>⚡ Priority customer support</li>
       </ul>
     </div>
     
     <form id="subscriptionForm">
+      <div class="form-group">
+        <label for="firstName">First Name</label>
+        <input type="text" id="firstName" name="firstName" required placeholder="First Name">
+      </div>
+      
+      <div class="form-group">
+        <label for="lastName">Last Name</label>
+        <input type="text" id="lastName" name="lastName" required placeholder="Last Name">
+      </div>
+      
       <div class="form-group">
         <label for="email">Email Address</label>
         <input type="email" id="email" name="email" required placeholder="your@email.com">
@@ -940,7 +948,7 @@ app.get('/subscribe', (req, res) => {
       </div>
       
       <button type="submit" class="subscribe-btn">
-        🚀 Subscribe Now - $1/month
+        🚀 Subscribe Now - $2.99/month
       </button>
     </form>
     
