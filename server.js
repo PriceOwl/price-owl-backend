@@ -912,7 +912,7 @@ app.get('/subscribe', (req, res) => {
     <div class="features">
       <h3>✨ Premium Features</h3>
       <ul>
-        <li>Daily price checking</li>
+        <li>🔍 Daily price checking</li>
         <li>📧 Email alerts when there are deals</li>
         <li>📱 SMS notifications when there are deals</li>
         <li>⚡ Priority customer support</li>
