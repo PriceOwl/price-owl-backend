@@ -1118,5 +1118,5 @@ app.get('/subscription-success', (req, res) => {
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`Backend running on port ${PORT}`);
+  console.log(`🦉 Price Owl Backend v2.0 running on port ${PORT} - Screenshot Fix Deployed`);
 });
