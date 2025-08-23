@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Price Owl",
+  "version": "1.0.0",
+  "description": "Track prices on any website",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}

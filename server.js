@@ -245,6 +245,15 @@ app.get('/admin/dashboard', (req, res) => {
         
         container.innerHTML = captures.map(capture => \`
           <div class="capture-card">
+            \${capture.screenshot ? \`
+              <div style="margin-bottom: 15px;">
+                <img src="\${capture.screenshot}" 
+                     style="width: 100%; max-height: 200px; object-fit: cover; border-radius: 8px; cursor: pointer;" 
+                     onclick="openImageModal('\${capture.screenshot}')"
+                     title="Click to view full size">
+              </div>
+            \` : ''}
+            
             <div class="capture-url">\${capture.url}</div>
             <div class="capture-price">📌 \${capture.confirmedPrice}</div>
             
@@ -311,6 +320,30 @@ app.get('/admin/dashboard', (req, res) => {
       
       alert('Hoot sent! User notified of the deal.');
       loadCaptures();
+    }
+    
+    function openImageModal(imageData) {
+      const modal = document.createElement('div');
+      modal.style.cssText = \`
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.9);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 10000;
+        cursor: pointer;
+      \`;
+      
+      modal.innerHTML = \`
+        <img src="\${imageData}" style="max-width: 90%; max-height: 90%; object-fit: contain; border-radius: 8px;">
+      \`;
+      
+      modal.addEventListener('click', () => modal.remove());
+      document.body.appendChild(modal);
     }
     
     function logout() {
@@ -417,7 +450,7 @@ app.post('/api/capture-screenshot', upload.single('screenshot'), async (req, res
 });
 
 app.post('/api/confirm-capture', async (req, res) => {
-  const { captureId, confirmedPrice, userId, url, timestamp, notificationPrefs, userEmail, userPhone } = req.body;
+  const { captureId, confirmedPrice, userId, url, timestamp, notificationPrefs, userEmail, userPhone, screenshot } = req.body;
   
   const capture = {
     id: captureId,
@@ -428,6 +461,7 @@ app.post('/api/confirm-capture', async (req, res) => {
     notificationPrefs: notificationPrefs,
     userEmail: userEmail,
     userPhone: userPhone,
+    screenshot: screenshot, // Store the screenshot data
     status: 'monitoring',
     createdAt: new Date().toISOString()
   };
