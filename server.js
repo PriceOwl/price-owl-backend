@@ -499,6 +499,14 @@ app.post('/api/confirm-capture', async (req, res) => {
   });
 });
 
+app.get('/api/test-debug', (req, res) => {
+  res.json({
+    message: 'Debug endpoint working',
+    timestamp: new Date().toISOString(),
+    capturesCount: database.captures.length
+  });
+});
+
 app.get('/api/user/:userId/captures', (req, res) => {
   const userCaptures = database.captures.filter(c => c.userId === req.params.userId);
   res.json(userCaptures);
