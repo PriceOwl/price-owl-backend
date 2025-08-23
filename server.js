@@ -388,12 +388,11 @@ try {
 // Save database function
 function saveDatabase() {
   try {
-    console.log('Saving database to:', DATABASE_FILE);
-    console.log('Database content:', JSON.stringify(database, null, 2));
     require('fs').writeFileSync(DATABASE_FILE, JSON.stringify(database, null, 2));
-    console.log('Database saved successfully!');
+    console.log('Database saved successfully to:', DATABASE_FILE);
   } catch (error) {
     console.error('Failed to save database:', error);
+    console.error('Error details:', error.message);
   }
 }
 
@@ -454,6 +453,13 @@ app.post('/api/capture-screenshot', upload.single('screenshot'), async (req, res
 });
 
 app.post('/api/confirm-capture', async (req, res) => {
+  console.log('=== CAPTURE REQUEST ===');
+  console.log('Body keys:', Object.keys(req.body));
+  console.log('Screenshot field exists:', 'screenshot' in req.body);
+  console.log('Screenshot value type:', typeof req.body.screenshot);
+  console.log('Screenshot is null/undefined:', req.body.screenshot == null);
+  console.log('Screenshot length:', req.body.screenshot?.length || 0);
+  
   const { captureId, confirmedPrice, userId, url, timestamp, notificationPrefs, userEmail, userPhone, screenshot } = req.body;
   
   const capture = {
