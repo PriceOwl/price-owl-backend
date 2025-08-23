@@ -651,6 +651,30 @@ app.get('/api/user-captures/:userId', (req, res) => {
   res.json(sortedCaptures);
 });
 
+// Stop tracking endpoint - removes from both user view and admin dashboard
+app.post('/api/stop-tracking/:captureId', (req, res) => {
+  const captureId = req.params.captureId;
+  console.log('=== STOP TRACKING ENDPOINT ===');
+  console.log('Stop tracking capture ID:', captureId);
+  
+  // Find and mark capture as stopped (don't delete, just mark as stopped)
+  const captureIndex = database.captures.findIndex(capture => capture.id === captureId);
+  
+  if (captureIndex !== -1) {
+    database.captures[captureIndex].status = 'stopped';
+    database.captures[captureIndex].stoppedAt = new Date().toISOString();
+    
+    // Save to database
+    saveDatabase();
+    
+    console.log('Capture marked as stopped:', captureId);
+    res.json({ success: true, message: 'Tracking stopped successfully' });
+  } else {
+    console.log('Capture not found:', captureId);
+    res.status(404).json({ success: false, message: 'Capture not found' });
+  }
+});
+
 app.get('/api/admin/all-captures', (req, res) => {
   console.log('=== ADMIN ENDPOINT CALLED ===');
   console.log('Current database.captures length:', database.captures.length);
