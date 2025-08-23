@@ -1056,7 +1056,7 @@ app.get('/subscribe', (req, res) => {
       } catch (error) {
         console.error('Error:', error);
         document.getElementById('card-errors').textContent = 'An error occurred. Please try again.';
-        submitBtn.textContent = '🚀 Subscribe Now - $2.99/month';
+        submitBtn.textContent = '🚀 Subscribe Now - $1/month';
         submitBtn.disabled = false;
       }
     });
