@@ -967,6 +967,7 @@ app.get('/subscribe', (req, res) => {
       amount: 299, // $2.99 in cents
       currency: 'usd',
       setup_future_usage: 'off_session',
+      payment_method_types: ['card', 'paypal'],
     });
     
     // Create payment element (includes cards, PayPal, etc.)
@@ -975,6 +976,7 @@ app.get('/subscribe', (req, res) => {
         applePay: 'auto',
         googlePay: 'auto',
       },
+      layout: 'tabs',
     });
     
     paymentElement.mount('#payment-element');
