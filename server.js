@@ -921,6 +921,16 @@ app.get('/subscribe', (req, res) => {
     
     <form id="subscriptionForm">
       <div class="form-group">
+        <label for="firstName">First Name</label>
+        <input type="text" id="firstName" name="firstName" required placeholder="First Name">
+      </div>
+      
+      <div class="form-group">
+        <label for="lastName">Last Name</label>
+        <input type="text" id="lastName" name="lastName" required placeholder="Last Name">
+      </div>
+      
+      <div class="form-group">
         <label for="email">Email Address</label>
         <input type="email" id="email" name="email" required placeholder="your@email.com">
       </div>
@@ -1023,6 +1033,8 @@ app.get('/subscribe', (req, res) => {
       submitBtn.textContent = 'Processing...';
       submitBtn.disabled = true;
       
+      const firstName = document.getElementById('firstName').value;
+      const lastName = document.getElementById('lastName').value;
       const email = document.getElementById('email').value;
       const phone = document.getElementById('phone').value;
       
@@ -1032,6 +1044,7 @@ app.get('/subscribe', (req, res) => {
           type: 'card',
           card: paymentElement,
           billing_details: {
+            name: firstName + ' ' + lastName,
             email: email,
             phone: phone,
           },
