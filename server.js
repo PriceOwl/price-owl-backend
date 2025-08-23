@@ -242,6 +242,16 @@ app.get('/admin/dashboard', (req, res) => {
   
   <script>
     async function loadCaptures() {
+      const refreshBtn = document.querySelector('.refresh-btn');
+      const originalText = refreshBtn.innerHTML;
+      const originalColor = refreshBtn.style.backgroundColor;
+      
+      // Show loading state
+      refreshBtn.innerHTML = '⏳ Refreshing...';
+      refreshBtn.style.backgroundColor = '#6c757d';
+      refreshBtn.style.transform = 'scale(0.95)';
+      refreshBtn.disabled = true;
+      
       try {
         const response = await fetch('/api/admin/all-captures');
         const captures = await response.json();
@@ -310,6 +320,34 @@ app.get('/admin/dashboard', (req, res) => {
           </div>
         \`).join('');
         
+        // Show success state
+        refreshBtn.innerHTML = '✅ Refreshed!';
+        refreshBtn.style.backgroundColor = '#28a745';
+        refreshBtn.style.transform = 'scale(1.05)';
+        
+        // Add timestamp
+        const timestamp = document.createElement('div');
+        timestamp.id = 'lastRefresh';
+        timestamp.style.cssText = 'position: fixed; top: 10px; right: 10px; font-size: 12px; color: #28a745; font-weight: bold;';
+        timestamp.textContent = \`Last updated: \${new Date().toLocaleTimeString()}\`;
+        document.body.appendChild(timestamp);
+        
+        // Reset button after delay
+        setTimeout(() => {
+          refreshBtn.innerHTML = originalText;
+          refreshBtn.style.backgroundColor = originalColor || '';
+          refreshBtn.style.transform = 'scale(1)';
+          refreshBtn.disabled = false;
+          
+          // Reset timestamp color
+          setTimeout(() => {
+            if (timestamp) {
+              timestamp.style.color = '#666';
+              timestamp.style.fontWeight = 'normal';
+            }
+          }, 2000);
+        }, 1500);
+        
       } catch (error) {
         console.error('Failed to load captures:', error);
         document.getElementById('captures').innerHTML = \`
@@ -319,6 +357,17 @@ app.get('/admin/dashboard', (req, res) => {
             <button class="refresh-btn" onclick="loadCaptures()">🔄 Try Again</button>
           </div>
         \`;
+        
+        // Reset button on error
+        refreshBtn.innerHTML = '❌ Error - Try Again';
+        refreshBtn.style.backgroundColor = '#dc3545';
+        refreshBtn.style.transform = 'scale(1)';
+        refreshBtn.disabled = false;
+        
+        setTimeout(() => {
+          refreshBtn.innerHTML = originalText;
+          refreshBtn.style.backgroundColor = originalColor || '';
+        }, 3000);
       }
     }
     
