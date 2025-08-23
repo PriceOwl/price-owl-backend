@@ -793,9 +793,6 @@ app.get('/subscribe', (req, res) => {
         const result = await response.json();
         
         if (result.success) {
-          // Handle successful subscription
-          alert('🎉 Subscription activated! Welcome to Price Owl Premium!\\n\\nYou will now receive automatic price alerts.');
-          
           // Store subscription info for extension
           if (window.chrome && window.chrome.storage) {
             chrome.storage.local.set({
@@ -808,7 +805,7 @@ app.get('/subscribe', (req, res) => {
             });
           }
           
-          // Redirect or close
+          // Redirect to success page (don't close tab)
           window.location.href = '/subscription-success';
         } else {
           document.getElementById('card-errors').textContent = result.error;
@@ -836,6 +833,7 @@ app.get('/subscription-success', (req, res) => {
 <html>
 <head>
   <title>🎉 Welcome to Price Owl Premium!</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -852,41 +850,190 @@ app.get('/subscription-success', (req, res) => {
     .success-container {
       background: white;
       color: #333;
-      padding: 50px;
+      padding: 40px;
       border-radius: 20px;
       box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-      max-width: 500px;
+      max-width: 600px;
+      animation: slideUp 0.6s ease-out;
     }
-    .checkmark {
-      font-size: 80px;
-      color: #28a745;
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .celebration {
+      font-size: 120px;
       margin-bottom: 20px;
+      animation: bounce 1s ease-in-out infinite alternate;
     }
-    .close-btn {
-      background: #667eea;
-      color: white;
-      padding: 12px 24px;
+    @keyframes bounce {
+      to { transform: translateY(-10px); }
+    }
+    h1 {
+      color: #28a745;
+      margin-bottom: 15px;
+      font-size: 2.5em;
+    }
+    .features-box {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      padding: 25px;
+      border-radius: 15px;
+      margin: 25px 0;
+      text-align: left;
+    }
+    .features-box h3 {
+      color: #667eea;
+      margin-top: 0;
+      text-align: center;
+    }
+    .features-box ul {
+      list-style: none;
+      padding: 0;
+    }
+    .features-box li {
+      padding: 8px 0;
+      border-bottom: 1px solid #dee2e6;
+      font-weight: 500;
+    }
+    .features-box li:last-child {
+      border-bottom: none;
+    }
+    .instruction-box {
+      background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+      padding: 20px;
+      border-radius: 12px;
+      margin: 20px 0;
+      border-left: 5px solid #ffc107;
+    }
+    .instruction-box h3 {
+      color: #856404;
+      margin-top: 0;
+    }
+    .instruction-box p {
+      color: #856404;
+      margin-bottom: 0;
+      font-weight: 500;
+    }
+    .action-buttons {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      margin-top: 30px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      padding: 15px 25px;
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
       cursor: pointer;
-      margin-top: 20px;
+      font-weight: bold;
+      font-size: 16px;
+      transition: all 0.3s;
+      text-decoration: none;
+      display: inline-block;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+    }
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+    .btn-secondary:hover {
+      background: #5a6268;
+      transform: translateY(-1px);
+    }
+    .premium-badge {
+      background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
+      color: #333;
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-weight: bold;
+      font-size: 14px;
+      display: inline-block;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(255, 215, 0, 0.3);
     }
   </style>
 </head>
 <body>
   <div class="success-container">
-    <div class="checkmark">✅</div>
-    <h1>Welcome to Premium!</h1>
-    <p>Your subscription is now active. You'll receive automatic price alerts via email and SMS.</p>
-    <p><strong>🦉 Price Owl Premium Features:</strong></p>
-    <ul style="text-align: left;">
-      <li>🤖 Automatic daily price checking</li>
-      <li>📧 Instant email alerts</li>
-      <li>📱 SMS notifications</li>
-      <li>🔔 Real-time deal notifications</li>
-    </ul>
-    <button class="close-btn" onclick="window.close()">Close & Start Tracking</button>
+    <div class="celebration">🎉</div>
+    <div class="premium-badge">✨ PREMIUM ACTIVATED ✨</div>
+    <h1>Congratulations!</h1>
+    <p style="font-size: 18px; margin-bottom: 25px;">
+      Welcome to <strong>Price Owl Premium</strong>! Your subscription is now active and you have full access to all premium features.
+    </p>
+
+    <div class="features-box">
+      <h3>🦉 Your Premium Features Are Now Active:</h3>
+      <ul>
+        <li>🤖 Automatic daily price checking while you sleep</li>
+        <li>📧 Instant email alerts when prices drop</li>
+        <li>📱 SMS notifications for urgent deals</li>
+        <li>🔔 Real-time deal notifications</li>
+        <li>🎯 Advanced price tracking algorithms</li>
+        <li>⚡ Priority customer support</li>
+      </ul>
+    </div>
+
+    <div class="instruction-box">
+      <h3>🚀 What to do next:</h3>
+      <p>
+        <strong>Go back to the Price Owl extension</strong> in your browser and refresh it. 
+        You now have full access to email and SMS notifications in the settings!
+      </p>
+    </div>
+
+    <p style="font-size: 16px; color: #666; margin: 20px 0;">
+      <strong>That's it!</strong> Just enjoy the extension and let Price Owl find the best deals for you automatically. 
+      Happy saving! 💰
+    </p>
+
+    <div class="action-buttons">
+      <button class="btn btn-primary" onclick="openExtension()">
+        🦉 Open Price Owl Extension
+      </button>
+      <button class="btn btn-secondary" onclick="window.close()">
+        Close This Tab
+      </button>
+    </div>
+
+    <p style="font-size: 12px; color: #999; margin-top: 30px;">
+      Questions? Contact us at support@priceowl.com
+    </p>
   </div>
+
+  <script>
+    function openExtension() {
+      // Try to open the extension popup (this might not work due to browser restrictions)
+      if (window.chrome && window.chrome.runtime) {
+        try {
+          window.chrome.runtime.sendMessage('extension-id', {action: 'openPopup'});
+        } catch (e) {
+          alert('Please click on the Price Owl extension icon in your browser toolbar to access your premium features!');
+        }
+      } else {
+        alert('Please click on the Price Owl extension icon in your browser toolbar to access your premium features!');
+      }
+    }
+
+    // Auto-close after 30 seconds if user doesn't interact
+    let autoCloseTimer = setTimeout(() => {
+      if (confirm('Would you like to close this tab? Your premium features are ready to use in the Price Owl extension!')) {
+        window.close();
+      }
+    }, 30000);
+
+    // Clear auto-close if user interacts with page
+    document.addEventListener('click', () => {
+      clearTimeout(autoCloseTimer);
+    });
+  </script>
 </body>
 </html>
   `);
