@@ -592,33 +592,125 @@ app.get('/api/admin/all-captures', (req, res) => {
   res.json(database.captures);
 });
 
+// Function to generate owl-themed messages
+function generateOwlMessage(capture, dealPrice, dealInfo) {
+  const originalPrice = parseFloat(capture.confirmedPrice.replace('$', ''));
+  const newPrice = parseFloat(dealPrice.replace('$', ''));
+  const savings = originalPrice - newPrice;
+  const percentSaved = ((savings / originalPrice) * 100).toFixed(0);
+  
+  // Determine message type and generate appropriate owl content
+  let owlGreeting, dealDescription, callToAction;
+  
+  if (dealInfo.toLowerCase().includes('%') || dealInfo.toLowerCase().includes('percent')) {
+    owlGreeting = "🦉 HOOT HOOT! Your owl eyes spotted a percentage deal!";
+    dealDescription = `${dealInfo} - You're saving $${savings.toFixed(2)} (${percentSaved}% off)!`;
+  } else if (dealInfo.toLowerCase().includes('coupon') || dealInfo.toLowerCase().includes('code')) {
+    owlGreeting = "🦉 HOOT HOOT! Your wise owl found a coupon code!";
+    dealDescription = `${dealInfo} - Use this deal before it flies away!`;
+  } else if (newPrice < originalPrice) {
+    owlGreeting = "🦉 HOOT HOOT! Price drop alert - your patience paid off!";
+    dealDescription = `Price dropped from ${capture.confirmedPrice} to ${dealPrice} - Save $${savings.toFixed(2)} (${percentSaved}% off)!`;
+  } else {
+    owlGreeting = "🦉 HOOT HOOT! Special deal alert from your owl!";
+    dealDescription = dealInfo;
+  }
+  
+  callToAction = "Fly over and grab this deal before it's gone! 🦅";
+  
+  return {
+    subject: `🦉 Price Owl Alert - Deal Found! Save ${percentSaved}%`,
+    body: `${owlGreeting}
+
+${dealDescription}
+
+📦 Product: ${capture.url}
+💰 Your tracked price: ${capture.confirmedPrice}
+🎯 Deal price: ${dealPrice}
+
+${callToAction}
+
+---
+🦉 Price Owl - Your trusted deal hunter
+Unsubscribe anytime in your account settings`
+  };
+}
+
 app.post('/api/admin/send-notification', async (req, res) => {
   const { captureId, dealPrice, dealInfo } = req.body;
   const capture = database.captures.find(c => c.id === captureId);
   
   if (!capture) return res.status(404).json({ error: 'Not found' });
   
-  const message = `🦉 Hoot hoot! Price drop alert!\n${capture.url}\nOriginal: ${capture.confirmedPrice}\nNow: ${dealPrice}\n${dealInfo}`;
+  // Generate automatic owl-themed message
+  const owlMessage = generateOwlMessage(capture, dealPrice, dealInfo || 'Special deal found');
   
-  // Send notifications based on preferences
+  let emailSent = false;
+  let smsSent = false;
+  let errors = [];
+  
+  // Send email notifications with owl-themed content
   if (capture.notificationPrefs.includes('email') && process.env.EMAIL_USER) {
-    await emailTransporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: capture.userEmail,
-      subject: '🦉 Price Owl Alert - Price Dropped!',
-      text: message
-    });
+    try {
+      await emailTransporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: capture.userEmail,
+        subject: owlMessage.subject,
+        text: owlMessage.body,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f8f9fa; padding: 20px; border-radius: 10px;">
+            <div style="text-align: center; margin-bottom: 20px;">
+              <h2 style="color: #667eea; margin: 0;">${owlMessage.subject}</h2>
+            </div>
+            <div style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+              ${owlMessage.body.split('\n').map(line => 
+                line.startsWith('🦉') ? `<h3 style="color: #667eea; margin: 0 0 15px 0;">${line}</h3>` :
+                line.startsWith('📦') || line.startsWith('💰') || line.startsWith('🎯') ? `<p style="margin: 5px 0; color: #333;"><strong>${line}</strong></p>` :
+                line.trim() === '' ? '<br>' :
+                line.startsWith('---') ? '<hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">' :
+                `<p style="margin: 10px 0; color: #333;">${line}</p>`
+              ).join('')}
+            </div>
+            <div style="text-align: center; margin-top: 20px; font-size: 12px; color: #666;">
+              <p>🦉 Price Owl - Your trusted deal hunter</p>
+            </div>
+          </div>
+        `
+      });
+      emailSent = true;
+      console.log(`📧 Owl-themed email sent to ${capture.userEmail}`);
+    } catch (error) {
+      console.error('Email send error:', error.message);
+      errors.push(`Email: ${error.message}`);
+    }
   }
   
+  // Send SMS notifications with shorter owl-themed content
   if (capture.notificationPrefs.includes('sms') && twilioClient) {
-    await twilioClient.messages.create({
-      body: message,
-      from: process.env.TWILIO_PHONE,
-      to: capture.userPhone
-    });
+    try {
+      // Create shorter version for SMS
+      const shortMessage = `🦉 Price Owl Alert! ${dealInfo || 'Deal found'} - ${capture.confirmedPrice} → ${dealPrice}. Check: ${capture.url}`;
+      
+      await twilioClient.messages.create({
+        body: shortMessage,
+        from: process.env.TWILIO_PHONE,
+        to: capture.userPhone
+      });
+      smsSent = true;
+      console.log(`📱 Owl-themed SMS sent to ${capture.userPhone}`);
+    } catch (error) {
+      console.error('SMS send error:', error.message);
+      errors.push(`SMS: ${error.message}`);
+    }
   }
   
-  res.json({ success: true, message: 'Notifications sent!' });
+  res.json({ 
+    success: true, 
+    message: 'Notification attempt completed!',
+    emailSent,
+    smsSent,
+    errors: errors.length > 0 ? errors : undefined
+  });
 });
 
 // Create Stripe subscription
