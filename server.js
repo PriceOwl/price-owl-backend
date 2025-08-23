@@ -452,9 +452,31 @@ let database = {
 try {
   const data = require('fs').readFileSync(DATABASE_FILE, 'utf8');
   database = JSON.parse(data);
+  console.log('📊 Database loaded successfully - Captures:', database.captures.length);
 } catch (error) {
-  console.log('No existing database file, starting fresh');
+  console.log('📄 No existing database file, starting fresh');
+  database.captures = database.captures || [];
+  database.notifications = database.notifications || [];
 }
+
+// Ensure database structure exists
+database.captures = database.captures || [];
+database.notifications = database.notifications || [];
+database.subscriptions = database.subscriptions || [];
+
+// Log current database status for debugging
+console.log('🔍 Database status on startup:');
+console.log('- Total captures:', database.captures.length);
+console.log('- Database file:', DATABASE_FILE);
+
+// Show active captures for admin tracking
+const activeCaptures = database.captures.filter(capture => 
+  !capture.status || capture.status === 'monitoring' || capture.status === 'active'
+);
+console.log('- Active trackings:', activeCaptures.length);
+activeCaptures.forEach((capture, index) => {
+  console.log(`  ${index + 1}. ${capture.url} - ${capture.confirmedPrice} (${new Date(capture.timestamp).toLocaleDateString()})`);
+});
 
 // Save database function
 function saveDatabase() {
@@ -466,6 +488,9 @@ function saveDatabase() {
     console.error('Error details:', error.message);
   }
 }
+
+// Force save database on startup to ensure Railway persistence
+saveDatabase();
 
 // Email setup (using Gmail - replace with your service)
 const emailTransporter = nodemailer.createTransport({
@@ -588,8 +613,21 @@ app.get('/api/user/:userId/captures', (req, res) => {
 app.get('/api/admin/all-captures', (req, res) => {
   console.log('=== ADMIN ENDPOINT CALLED ===');
   console.log('Current database.captures length:', database.captures.length);
-  console.log('Captures:', database.captures);
-  res.json(database.captures);
+  
+  // Filter to only show active trackings (not completed/stopped)
+  const activeCaptures = database.captures.filter(capture => 
+    !capture.status || capture.status === 'monitoring' || capture.status === 'active'
+  );
+  
+  console.log('Active captures:', activeCaptures.length);
+  console.log('Captures data:', activeCaptures);
+  
+  // Add debugging info for each capture
+  activeCaptures.forEach(capture => {
+    console.log(`Capture ${capture.id}: ${capture.url} - ${capture.confirmedPrice} (${capture.status || 'monitoring'})`);
+  });
+  
+  res.json(activeCaptures);
 });
 
 // Function to generate owl-themed messages
