@@ -723,14 +723,16 @@ app.post('/api/create-setup-intent', async (req, res) => {
         payment_method_types: ['card', 'paypal'],
         usage: 'off_session'
       });
-      console.log('Setup Intent created with PayPal support');
+      console.log('Setup Intent created with PayPal support:', intent.payment_method_types);
     } catch (paypalError) {
       console.log('PayPal not available, creating card-only setup intent:', paypalError.message);
+      console.log('Full PayPal error:', paypalError);
       // Fallback to card-only if PayPal is not enabled
       intent = await stripe.setupIntents.create({
         payment_method_types: ['card'],
         usage: 'off_session'
       });
+      console.log('Card-only setup intent created:', intent.payment_method_types);
     }
     
     res.json({
@@ -950,16 +952,6 @@ app.get('/subscribe', (req, res) => {
     
     <form id="subscriptionForm">
       <div class="form-group">
-        <label for="firstName">First Name</label>
-        <input type="text" id="firstName" name="firstName" required placeholder="First Name">
-      </div>
-      
-      <div class="form-group">
-        <label for="lastName">Last Name</label>
-        <input type="text" id="lastName" name="lastName" required placeholder="Last Name">
-      </div>
-      
-      <div class="form-group">
         <label for="email">Email Address</label>
         <input type="email" id="email" name="email" required placeholder="your@email.com">
       </div>
@@ -1023,6 +1015,9 @@ app.get('/subscribe', (req, res) => {
       
       const result = await response.json();
       client_secret = result.client_secret;
+      
+      console.log('Setup Intent created:', result);
+      console.log('Available payment methods:', result.payment_method_types);
       
       // Create Payment Element with PayPal support
       elements = stripe.elements({
