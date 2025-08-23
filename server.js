@@ -373,6 +373,12 @@ const emailTransporter = nodemailer.createTransport({
 const twilioClient = process.env.TWILIO_SID ? 
   twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH) : null;
 
+// Stripe setup
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+
+// Store subscription data
+database.subscriptions = database.subscriptions || [];
+
 app.post('/api/capture-screenshot', upload.single('screenshot'), async (req, res) => {
   const { url, selection } = req.body;
   
@@ -473,6 +479,107 @@ app.post('/api/admin/send-notification', async (req, res) => {
   }
   
   res.json({ success: true, message: 'Notifications sent!' });
+});
+
+// Create Stripe subscription
+app.post('/api/create-subscription', async (req, res) => {
+  try {
+    const { email, phone, paymentMethodId } = req.body;
+
+    // Create customer
+    const customer = await stripe.customers.create({
+      email: email,
+      phone: phone,
+      payment_method: paymentMethodId,
+      invoice_settings: {
+        default_payment_method: paymentMethodId,
+      },
+    });
+
+    // Create subscription
+    const subscription = await stripe.subscriptions.create({
+      customer: customer.id,
+      items: [{ price: process.env.STRIPE_PRICE_ID || 'price_1234567890' }], // You'll need to create a price in Stripe
+      payment_behavior: 'default_incomplete',
+      expand: ['latest_invoice.payment_intent'],
+    });
+
+    // Store subscription in database
+    const subscriptionData = {
+      id: subscription.id,
+      customerId: customer.id,
+      email: email,
+      phone: phone,
+      status: subscription.status,
+      createdAt: new Date().toISOString()
+    };
+    
+    database.subscriptions.push(subscriptionData);
+    saveDatabase();
+
+    res.json({
+      success: true,
+      subscriptionId: subscription.id,
+      clientSecret: subscription.latest_invoice.payment_intent.client_secret,
+    });
+    
+  } catch (error) {
+    console.error('Subscription creation failed:', error);
+    res.status(400).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// Handle Stripe webhooks
+app.post('/api/stripe-webhook', express.raw({type: 'application/json'}), (req, res) => {
+  const sig = req.headers['stripe-signature'];
+  let event;
+
+  try {
+    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.log('Webhook signature verification failed.', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  // Handle the event
+  switch (event.type) {
+    case 'invoice.payment_succeeded':
+      const invoice = event.data.object;
+      console.log('Payment succeeded for subscription:', invoice.subscription);
+      
+      // Update subscription status in database
+      const sub = database.subscriptions.find(s => s.id === invoice.subscription);
+      if (sub) {
+        sub.status = 'active';
+        sub.lastPayment = new Date().toISOString();
+        saveDatabase();
+      }
+      break;
+      
+    case 'invoice.payment_failed':
+      console.log('Payment failed for subscription:', event.data.object.subscription);
+      break;
+      
+    default:
+      console.log(`Unhandled event type ${event.type}`);
+  }
+
+  res.json({received: true});
+});
+
+// Get subscription status
+app.get('/api/subscription-status/:email', (req, res) => {
+  const subscription = database.subscriptions.find(s => 
+    s.email === req.params.email && s.status === 'active'
+  );
+  
+  res.json({
+    active: !!subscription,
+    subscription: subscription || null
+  });
 });
 
 // Subscription landing page
@@ -593,19 +700,11 @@ app.get('/subscribe', (req, res) => {
       </div>
       
       <div class="form-group">
-        <label for="cardNumber">Card Number</label>
-        <input type="text" id="cardNumber" name="cardNumber" required placeholder="1234 5678 9012 3456" maxlength="19">
-      </div>
-      
-      <div style="display: flex; gap: 15px;">
-        <div class="form-group" style="flex: 1;">
-          <label for="expiry">Expiry Date</label>
-          <input type="text" id="expiry" name="expiry" required placeholder="MM/YY" maxlength="5">
+        <label for="card-element">Card Information</label>
+        <div id="card-element" style="padding: 12px; border: 2px solid #ddd; border-radius: 8px; background: white;">
+          <!-- Stripe Elements will create form elements here -->
         </div>
-        <div class="form-group" style="flex: 1;">
-          <label for="cvc">CVC</label>
-          <input type="text" id="cvc" name="cvc" required placeholder="123" maxlength="4">
-        </div>
+        <div id="card-errors" role="alert" style="color: #e74c3c; margin-top: 5px; font-size: 14px;"></div>
       </div>
       
       <button type="submit" class="subscribe-btn">
@@ -618,60 +717,176 @@ app.get('/subscribe', (req, res) => {
     </div>
   </div>
   
+  <script src="https://js.stripe.com/v3/"></script>
   <script>
-    // Format card number with spaces
-    document.getElementById('cardNumber').addEventListener('input', function(e) {
-      let value = e.target.value.replace(/\\s/g, '').replace(/[^0-9]/gi, '');
-      let formattedValue = value.match(/.{1,4}/g)?.join(' ') || value;
-      e.target.value = formattedValue;
+    // Initialize Stripe
+    const stripe = Stripe('${process.env.STRIPE_PUBLISHABLE_KEY}');
+    const elements = stripe.elements();
+    
+    // Create card element
+    const cardElement = elements.create('card', {
+      style: {
+        base: {
+          fontSize: '16px',
+          color: '#424770',
+          '::placeholder': {
+            color: '#aab7c4',
+          },
+        },
+      },
     });
     
-    // Format expiry date
-    document.getElementById('expiry').addEventListener('input', function(e) {
-      let value = e.target.value.replace(/\\D/g, '');
-      if (value.length >= 2) {
-        value = value.substring(0, 2) + '/' + value.substring(2, 4);
+    cardElement.mount('#card-element');
+    
+    // Handle real-time validation errors from the card Element
+    cardElement.on('change', function(event) {
+      const displayError = document.getElementById('card-errors');
+      if (event.error) {
+        displayError.textContent = event.error.message;
+      } else {
+        displayError.textContent = '';
       }
-      e.target.value = value;
     });
     
-    // Only allow numbers in CVC
-    document.getElementById('cvc').addEventListener('input', function(e) {
-      e.target.value = e.target.value.replace(/[^0-9]/g, '');
-    });
-    
-    document.getElementById('subscriptionForm').addEventListener('submit', function(e) {
+    // Handle form submission
+    document.getElementById('subscriptionForm').addEventListener('submit', async function(e) {
       e.preventDefault();
       
-      // Simple simulation - in real implementation would use Stripe
-      const formData = new FormData(e.target);
-      const data = Object.fromEntries(formData.entries());
-      
-      // Simulate payment processing
       const submitBtn = e.target.querySelector('.subscribe-btn');
       submitBtn.textContent = 'Processing...';
       submitBtn.disabled = true;
       
-      setTimeout(() => {
-        alert('🎉 Subscription activated! Welcome to Price Owl Premium!\\n\\nYou will now receive automatic price alerts.');
+      const email = document.getElementById('email').value;
+      const phone = document.getElementById('phone').value;
+      
+      try {
+        // Create payment method
+        const {error, paymentMethod} = await stripe.createPaymentMethod({
+          type: 'card',
+          card: cardElement,
+          billing_details: {
+            email: email,
+            phone: phone,
+          },
+        });
         
-        // In real implementation, would redirect to success page or extension
-        window.close();
-        
-        // Store subscription info (simplified)
-        if (window.chrome && window.chrome.storage) {
-          chrome.storage.local.set({
-            subscription: {
-              active: true,
-              email: data.email,
-              phone: data.phone,
-              subscribedAt: new Date().toISOString()
-            }
-          });
+        if (error) {
+          document.getElementById('card-errors').textContent = error.message;
+          submitBtn.textContent = '🚀 Subscribe Now - $1/month';
+          submitBtn.disabled = false;
+          return;
         }
-      }, 2000);
+        
+        // Create subscription
+        const response = await fetch('/api/create-subscription', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: email,
+            phone: phone,
+            paymentMethodId: paymentMethod.id,
+          }),
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+          // Handle successful subscription
+          alert('🎉 Subscription activated! Welcome to Price Owl Premium!\\n\\nYou will now receive automatic price alerts.');
+          
+          // Store subscription info for extension
+          if (window.chrome && window.chrome.storage) {
+            chrome.storage.local.set({
+              subscription: {
+                active: true,
+                email: email,
+                phone: phone,
+                subscribedAt: new Date().toISOString()
+              }
+            });
+          }
+          
+          // Redirect or close
+          window.location.href = '/subscription-success';
+        } else {
+          document.getElementById('card-errors').textContent = result.error;
+          submitBtn.textContent = '🚀 Subscribe Now - $1/month';
+          submitBtn.disabled = false;
+        }
+        
+      } catch (error) {
+        console.error('Error:', error);
+        document.getElementById('card-errors').textContent = 'An error occurred. Please try again.';
+        submitBtn.textContent = '🚀 Subscribe Now - $1/month';
+        submitBtn.disabled = false;
+      }
     });
   </script>
+</body>
+</html>
+  `);
+});
+
+// Subscription success page
+app.get('/subscription-success', (req, res) => {
+  res.send(`
+<!DOCTYPE html>
+<html>
+<head>
+  <title>🎉 Welcome to Price Owl Premium!</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      margin: 0;
+      padding: 20px;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      text-align: center;
+    }
+    .success-container {
+      background: white;
+      color: #333;
+      padding: 50px;
+      border-radius: 20px;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+      max-width: 500px;
+    }
+    .checkmark {
+      font-size: 80px;
+      color: #28a745;
+      margin-bottom: 20px;
+    }
+    .close-btn {
+      background: #667eea;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div class="success-container">
+    <div class="checkmark">✅</div>
+    <h1>Welcome to Premium!</h1>
+    <p>Your subscription is now active. You'll receive automatic price alerts via email and SMS.</p>
+    <p><strong>🦉 Price Owl Premium Features:</strong></p>
+    <ul style="text-align: left;">
+      <li>🤖 Automatic daily price checking</li>
+      <li>📧 Instant email alerts</li>
+      <li>📱 SMS notifications</li>
+      <li>🔔 Real-time deal notifications</li>
+    </ul>
+    <button class="close-btn" onclick="window.close()">Close & Start Tracking</button>
+  </div>
 </body>
 </html>
   `);
