@@ -716,13 +716,26 @@ app.post('/api/admin/send-notification', async (req, res) => {
 // Create setup intent for PayPal
 app.post('/api/create-setup-intent', async (req, res) => {
   try {
-    const intent = await stripe.setupIntents.create({
-      payment_method_types: ['card', 'paypal'],
-      usage: 'off_session'
-    });
+    // Try with PayPal first
+    let intent;
+    try {
+      intent = await stripe.setupIntents.create({
+        payment_method_types: ['card', 'paypal'],
+        usage: 'off_session'
+      });
+      console.log('Setup Intent created with PayPal support');
+    } catch (paypalError) {
+      console.log('PayPal not available, creating card-only setup intent:', paypalError.message);
+      // Fallback to card-only if PayPal is not enabled
+      intent = await stripe.setupIntents.create({
+        payment_method_types: ['card'],
+        usage: 'off_session'
+      });
+    }
     
     res.json({
-      client_secret: intent.client_secret
+      client_secret: intent.client_secret,
+      payment_method_types: intent.payment_method_types
     });
   } catch (error) {
     console.error('Setup Intent creation error:', error);
@@ -1001,6 +1014,9 @@ app.get('/subscribe', (req, res) => {
       });
       const result = await response.json();
       client_secret = result.client_secret;
+      const availablePaymentMethods = result.payment_method_types || ['card'];
+      
+      console.log('Available payment methods:', availablePaymentMethods);
       
       elements = stripe.elements({
         clientSecret: client_secret,
@@ -1012,10 +1028,19 @@ app.get('/subscribe', (req, res) => {
         }
       });
       
-      paymentElement = elements.create('payment', {
-        layout: 'tabs',
-        paymentMethodOrder: ['card', 'paypal']
-      });
+      // Only show PayPal tab if it's actually available
+      const paymentConfig = {
+        layout: availablePaymentMethods.includes('paypal') ? 'tabs' : 'auto'
+      };
+      
+      if (availablePaymentMethods.includes('paypal')) {
+        paymentConfig.paymentMethodOrder = ['card', 'paypal'];
+        console.log('PayPal is available - showing tabs');
+      } else {
+        console.log('PayPal not available - showing card only');
+      }
+      
+      paymentElement = elements.create('payment', paymentConfig);
       
       paymentElement.mount('#payment-element').then(() => {
         document.getElementById('payment-loading').style.display = 'none';
