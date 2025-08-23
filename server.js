@@ -999,56 +999,18 @@ app.get('/subscribe', (req, res) => {
   <script src="https://js.stripe.com/v3/"></script>
   <script>
     // Initialize Stripe
-    const stripe = Stripe('${process.env.STRIPE_PUBLISHABLE_KEY}');
+    const stripeKey = '${process.env.STRIPE_PUBLISHABLE_KEY}';
+    console.log('Stripe key available:', stripeKey ? 'Yes' : 'No');
+    const stripe = Stripe(stripeKey);
     
     // First try to create with PayPal, fallback to card only if it fails
     let elements, paymentElement, client_secret;
     
     async function initializePayments() {
     try {
-      // Create client secret for PayPal (required for Payment Element)
-      const response = await fetch('/api/create-setup-intent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ currency: 'usd' })
-      });
-      const result = await response.json();
-      client_secret = result.client_secret;
-      const availablePaymentMethods = result.payment_method_types || ['card'];
+      console.log('Initializing simple card element...');
       
-      console.log('Available payment methods:', availablePaymentMethods);
-      
-      elements = stripe.elements({
-        clientSecret: client_secret,
-        appearance: {
-          theme: 'stripe',
-          variables: {
-            colorPrimary: '#667eea',
-          }
-        }
-      });
-      
-      // Only show PayPal tab if it's actually available
-      const paymentConfig = {
-        layout: availablePaymentMethods.includes('paypal') ? 'tabs' : 'auto'
-      };
-      
-      if (availablePaymentMethods.includes('paypal')) {
-        paymentConfig.paymentMethodOrder = ['card', 'paypal'];
-        console.log('PayPal is available - showing tabs');
-      } else {
-        console.log('PayPal not available - showing card only');
-      }
-      
-      paymentElement = elements.create('payment', paymentConfig);
-      
-      paymentElement.mount('#payment-element').then(() => {
-        document.getElementById('payment-loading').style.display = 'none';
-        console.log('Payment Element with PayPal loaded successfully');
-      });
-    } catch (error) {
-      console.log('PayPal not available, falling back to card only:', error);
-      // Fallback to card-only if PayPal fails
+      // Use simple card element for now - more reliable
       elements = stripe.elements();
       paymentElement = elements.create('card', {
         style: {
@@ -1061,8 +1023,37 @@ app.get('/subscribe', (req, res) => {
           },
         },
       });
+      
       paymentElement.mount('#payment-element');
-      document.getElementById('payment-loading').style.display = 'none';
+      const loadingEl = document.getElementById('payment-loading');
+      if (loadingEl) loadingEl.style.display = 'none';
+      console.log('Card element loaded successfully');
+    } catch (error) {
+      console.log('PayPal not available, falling back to card only:', error);
+      // Fallback to card-only if PayPal fails
+      try {
+        elements = stripe.elements();
+        paymentElement = elements.create('card', {
+          style: {
+            base: {
+              fontSize: '16px',
+              color: '#424770',
+              '::placeholder': {
+                color: '#aab7c4',
+              },
+            },
+          },
+        });
+        paymentElement.mount('#payment-element');
+        const loadingEl = document.getElementById('payment-loading');
+        if (loadingEl) loadingEl.style.display = 'none';
+      } catch (fallbackError) {
+        console.error('Card fallback failed:', fallbackError);
+        const errorEl = document.getElementById('payment-errors');
+        if (errorEl) errorEl.textContent = 'Payment form failed to load. Please refresh and try again.';
+        const loadingEl = document.getElementById('payment-loading');
+        if (loadingEl) loadingEl.innerHTML = 'Payment form failed to load. Please refresh the page.';
+      }
     }
     }
     
@@ -1082,13 +1073,14 @@ app.get('/subscribe', (req, res) => {
       const phone = document.getElementById('phone').value;
       
       try {
-        // Confirm setup with Payment Element
-        const {error} = await stripe.confirmSetup({
-          elements,
-          confirmParams: {
-            return_url: window.location.origin + '/subscription-success',
+        // Create payment method with card element
+        const {error, paymentMethod} = await stripe.createPaymentMethod({
+          type: 'card',
+          card: paymentElement,
+          billing_details: {
+            email: email,
+            phone: phone,
           },
-          redirect: 'if_required'
         });
         
         if (error) {
@@ -1097,10 +1089,6 @@ app.get('/subscribe', (req, res) => {
           submitBtn.disabled = false;
           return;
         }
-        
-        // Get the setup intent to extract payment method
-        const setupIntent = await stripe.retrieveSetupIntent(client_secret);
-        const paymentMethod = setupIntent.setupIntent.payment_method;
         
         // Create subscription
         const response = await fetch('/api/create-subscription', {
