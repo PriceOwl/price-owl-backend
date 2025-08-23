@@ -1,21 +1,5 @@
 {
-  "captures": [
-    {
-      "id": "test-123",
-      "userId": "test-user",
-      "url": "https://amazon.com/test-product",
-      "confirmedPrice": "$99.99",
-      "timestamp": "2025-08-23T16:09:00.000Z",
-      "notificationPrefs": [
-        "email",
-        "sms"
-      ],
-      "userEmail": "test@example.com",
-      "userPhone": "+1234567890",
-      "status": "monitoring",
-      "createdAt": "2025-08-23T16:09:24.756Z"
-    }
-  ],
+  "captures": [],
   "notifications": [],
   "subscriptions": []
 }
