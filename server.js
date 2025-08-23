@@ -387,7 +387,10 @@ try {
 // Save database function
 function saveDatabase() {
   try {
+    console.log('Saving database to:', DATABASE_FILE);
+    console.log('Database content:', JSON.stringify(database, null, 2));
     require('fs').writeFileSync(DATABASE_FILE, JSON.stringify(database, null, 2));
+    console.log('Database saved successfully!');
   } catch (error) {
     console.error('Failed to save database:', error);
   }
@@ -450,6 +453,9 @@ app.post('/api/capture-screenshot', upload.single('screenshot'), async (req, res
 });
 
 app.post('/api/confirm-capture', async (req, res) => {
+  console.log('=== CAPTURE REQUEST RECEIVED ===');
+  console.log('Request body:', req.body);
+  
   const { captureId, confirmedPrice, userId, url, timestamp, notificationPrefs, userEmail, userPhone, screenshot } = req.body;
   
   const capture = {
@@ -467,7 +473,9 @@ app.post('/api/confirm-capture', async (req, res) => {
   };
   
   database.captures.push(capture);
+  console.log('Database before save:', database.captures.length, 'captures');
   saveDatabase(); // Persist to file
+  console.log('Database after save - checking file...');
   
   console.log('New capture saved:', capture.id, capture.url, capture.confirmedPrice);
   
@@ -483,6 +491,9 @@ app.get('/api/user/:userId/captures', (req, res) => {
 });
 
 app.get('/api/admin/all-captures', (req, res) => {
+  console.log('=== ADMIN ENDPOINT CALLED ===');
+  console.log('Current database.captures length:', database.captures.length);
+  console.log('Captures:', database.captures);
   res.json(database.captures);
 });
 
