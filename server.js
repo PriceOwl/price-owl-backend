@@ -325,12 +325,7 @@ app.get('/admin/dashboard', (req, res) => {
         refreshBtn.style.backgroundColor = '#28a745';
         refreshBtn.style.transform = 'scale(1.05)';
         
-        // Add timestamp
-        const timestamp = document.createElement('div');
-        timestamp.id = 'lastRefresh';
-        timestamp.style.cssText = 'position: fixed; top: 10px; right: 10px; font-size: 12px; color: #28a745; font-weight: bold;';
-        timestamp.textContent = \`Last updated: \${new Date().toLocaleTimeString()}\`;
-        document.body.appendChild(timestamp);
+        // Removed timestamp display
         
         // Reset button after delay
         setTimeout(() => {
