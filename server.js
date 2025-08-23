@@ -453,12 +453,17 @@ app.post('/api/capture-screenshot', upload.single('screenshot'), async (req, res
 });
 
 app.post('/api/confirm-capture', async (req, res) => {
+  const debugInfo = {
+    bodyKeys: Object.keys(req.body),
+    screenshotExists: 'screenshot' in req.body,
+    screenshotType: typeof req.body.screenshot,
+    screenshotNull: req.body.screenshot == null,
+    screenshotLength: req.body.screenshot?.length || 0,
+    screenshotPrefix: req.body.screenshot?.substring(0, 50) || 'NO DATA'
+  };
+  
   console.log('=== CAPTURE REQUEST ===');
-  console.log('Body keys:', Object.keys(req.body));
-  console.log('Screenshot field exists:', 'screenshot' in req.body);
-  console.log('Screenshot value type:', typeof req.body.screenshot);
-  console.log('Screenshot is null/undefined:', req.body.screenshot == null);
-  console.log('Screenshot length:', req.body.screenshot?.length || 0);
+  console.log('Debug info:', debugInfo);
   
   const { captureId, confirmedPrice, userId, url, timestamp, notificationPrefs, userEmail, userPhone, screenshot } = req.body;
   
@@ -481,9 +486,16 @@ app.post('/api/confirm-capture', async (req, res) => {
   
   console.log('New capture saved:', capture.id, capture.url, capture.confirmedPrice);
   
+  // Include debug info in response for testing
+  if (req.body.debug) {
+    debugInfo.captureInDb = !!database.captures.find(c => c.id === captureId);
+    debugInfo.captureScreenshotInDb = !!database.captures.find(c => c.id === captureId)?.screenshot;
+  }
+  
   res.json({
     success: true,
-    message: 'Hoot! Price tracking activated!'
+    message: 'Hoot! Price tracking activated!',
+    ...(req.body.debug && { debug: debugInfo })
   });
 });
 
