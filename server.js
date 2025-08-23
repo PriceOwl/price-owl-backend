@@ -454,11 +454,6 @@ app.post('/api/capture-screenshot', upload.single('screenshot'), async (req, res
 });
 
 app.post('/api/confirm-capture', async (req, res) => {
-  console.log('=== CAPTURE REQUEST RECEIVED ===');
-  console.log('Request body keys:', Object.keys(req.body));
-  console.log('Screenshot present:', !!req.body.screenshot);
-  console.log('Screenshot length:', req.body.screenshot?.length || 0);
-  
   const { captureId, confirmedPrice, userId, url, timestamp, notificationPrefs, userEmail, userPhone, screenshot } = req.body;
   
   const capture = {
@@ -476,12 +471,9 @@ app.post('/api/confirm-capture', async (req, res) => {
   };
   
   database.captures.push(capture);
-  console.log('Database before save:', database.captures.length, 'captures');
   saveDatabase(); // Persist to file
-  console.log('Database after save - checking file...');
   
   console.log('New capture saved:', capture.id, capture.url, capture.confirmedPrice);
-  console.log('Saved screenshot length:', capture.screenshot?.length || 0);
   
   res.json({
     success: true,
