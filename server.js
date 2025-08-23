@@ -940,11 +940,12 @@ app.get('/subscribe', (req, res) => {
       </div>
       
       <div class="form-group">
-        <label for="card-element">Card Information</label>
-        <div id="card-element" style="padding: 12px; border: 2px solid #ddd; border-radius: 8px; background: white;">
-          <!-- Stripe Elements will create form elements here -->
+        <label for="payment-element">Payment Information</label>
+        <p style="font-size: 12px; color: #666; margin-bottom: 8px;">💳 Credit/Debit Card • 🟦 PayPal • 📱 Apple Pay • 🟢 Google Pay</p>
+        <div id="payment-element" style="padding: 12px; border: 2px solid #ddd; border-radius: 8px; background: white;">
+          <!-- Stripe Payment Element (includes Card, PayPal, etc.) -->
         </div>
-        <div id="card-errors" role="alert" style="color: #e74c3c; margin-top: 5px; font-size: 14px;"></div>
+        <div id="payment-errors" role="alert" style="color: #e74c3c; margin-top: 5px; font-size: 14px;"></div>
       </div>
       
       <button type="submit" class="subscribe-btn">
@@ -961,26 +962,26 @@ app.get('/subscribe', (req, res) => {
   <script>
     // Initialize Stripe
     const stripe = Stripe('${process.env.STRIPE_PUBLISHABLE_KEY}');
-    const elements = stripe.elements();
+    const elements = stripe.elements({
+      mode: 'subscription',
+      amount: 299, // $2.99 in cents
+      currency: 'usd',
+      setup_future_usage: 'off_session',
+    });
     
-    // Create card element
-    const cardElement = elements.create('card', {
-      style: {
-        base: {
-          fontSize: '16px',
-          color: '#424770',
-          '::placeholder': {
-            color: '#aab7c4',
-          },
-        },
+    // Create payment element (includes cards, PayPal, etc.)
+    const paymentElement = elements.create('payment', {
+      wallets: {
+        applePay: 'auto',
+        googlePay: 'auto',
       },
     });
     
-    cardElement.mount('#card-element');
+    paymentElement.mount('#payment-element');
     
-    // Handle real-time validation errors from the card Element
-    cardElement.on('change', function(event) {
-      const displayError = document.getElementById('card-errors');
+    // Handle real-time validation errors from the Payment Element
+    paymentElement.on('change', function(event) {
+      const displayError = document.getElementById('payment-errors');
       if (event.error) {
         displayError.textContent = event.error.message;
       } else {
@@ -1000,18 +1001,19 @@ app.get('/subscribe', (req, res) => {
       const phone = document.getElementById('phone').value;
       
       try {
-        // Create payment method
+        // Confirm payment with the Payment Element
         const {error, paymentMethod} = await stripe.createPaymentMethod({
-          type: 'card',
-          card: cardElement,
-          billing_details: {
-            email: email,
-            phone: phone,
+          elements,
+          params: {
+            billing_details: {
+              email: email,
+              phone: phone,
+            },
           },
         });
         
         if (error) {
-          document.getElementById('card-errors').textContent = error.message;
+          document.getElementById('payment-errors').textContent = error.message;
           submitBtn.textContent = '🚀 Subscribe Now - $2.99/month';
           submitBtn.disabled = false;
           return;
@@ -1048,14 +1050,14 @@ app.get('/subscribe', (req, res) => {
           // Redirect to success page (don't close tab)
           window.location.href = '/subscription-success';
         } else {
-          document.getElementById('card-errors').textContent = result.error;
+          document.getElementById('payment-errors').textContent = result.error;
           submitBtn.textContent = '🚀 Subscribe Now - $2.99/month';
           submitBtn.disabled = false;
         }
         
       } catch (error) {
         console.error('Error:', error);
-        document.getElementById('card-errors').textContent = 'An error occurred. Please try again.';
+        document.getElementById('payment-errors').textContent = 'An error occurred. Please try again.';
         submitBtn.textContent = '🚀 Subscribe Now - $2.99/month';
         submitBtn.disabled = false;
       }
