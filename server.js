@@ -631,12 +631,11 @@ app.get('/api/user-captures/:userId', (req, res) => {
     return isActive && isThisUser;
   });
   
-  // Sort by most recent first and limit to 3
+  // Sort by most recent first - NO LIMIT (backend can handle many captures per user)
   const sortedCaptures = userCaptures
-    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-    .slice(0, 3);
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   
-  console.log('User captures found:', userCaptures.length, 'total, returning:', sortedCaptures.length);
+  console.log('User captures found:', userCaptures.length, 'total, returning all for admin monitoring');
   res.json(sortedCaptures);
 });
 
