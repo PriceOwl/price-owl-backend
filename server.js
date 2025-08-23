@@ -716,6 +716,9 @@ app.post('/api/admin/send-notification', async (req, res) => {
 // Create setup intent for PayPal
 app.post('/api/create-setup-intent', async (req, res) => {
   try {
+    console.log('Creating Setup Intent...');
+    console.log('Stripe key exists:', !!process.env.STRIPE_SECRET_KEY);
+    
     // Try with PayPal first
     let intent;
     try {
@@ -723,16 +726,18 @@ app.post('/api/create-setup-intent', async (req, res) => {
         payment_method_types: ['card', 'paypal'],
         usage: 'off_session'
       });
-      console.log('Setup Intent created with PayPal support:', intent.payment_method_types);
+      console.log('✅ Setup Intent created with PayPal support:', intent.payment_method_types);
     } catch (paypalError) {
-      console.log('PayPal not available, creating card-only setup intent:', paypalError.message);
-      console.log('Full PayPal error:', paypalError);
+      console.log('❌ PayPal not available:', paypalError.message);
+      console.log('PayPal error code:', paypalError.code);
+      console.log('PayPal error type:', paypalError.type);
+      
       // Fallback to card-only if PayPal is not enabled
       intent = await stripe.setupIntents.create({
         payment_method_types: ['card'],
         usage: 'off_session'
       });
-      console.log('Card-only setup intent created:', intent.payment_method_types);
+      console.log('✅ Card-only setup intent created:', intent.payment_method_types);
     }
     
     res.json({
@@ -740,8 +745,10 @@ app.post('/api/create-setup-intent', async (req, res) => {
       payment_method_types: intent.payment_method_types
     });
   } catch (error) {
-    console.error('Setup Intent creation error:', error);
-    res.status(400).json({ error: error.message });
+    console.error('❌ Setup Intent creation failed:', error.message);
+    console.error('Error code:', error.code);
+    console.error('Error type:', error.type);
+    res.status(500).json({ error: 'Failed to create payment setup' });
   }
 });
 
@@ -1010,13 +1017,15 @@ app.get('/subscribe', (req, res) => {
       });
       
       if (!response.ok) {
-        throw new Error('Setup Intent failed');
+        const errorText = await response.text();
+        console.error('Setup Intent API error:', response.status, errorText);
+        throw new Error('Setup Intent failed with status ' + response.status);
       }
       
       const result = await response.json();
       client_secret = result.client_secret;
       
-      console.log('Setup Intent created:', result);
+      console.log('✅ Setup Intent created:', result);
       console.log('Available payment methods:', result.payment_method_types);
       
       // Create Payment Element with PayPal support
