@@ -212,6 +212,31 @@ app.get('/admin/dashboard', (req, res) => {
       text-decoration: none;
       font-size: 12px;
     }
+    .tab-btn {
+      padding: 10px 20px;
+      background: #16213e;
+      color: #94a3b8;
+      border: 2px solid #334155;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s;
+    }
+    .tab-btn:hover {
+      background: #1e293b;
+      border-color: #667eea;
+    }
+    .tab-btn.active {
+      background: #667eea;
+      color: white;
+      border-color: #667eea;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: grid;
+    }
   </style>
 </head>
 <body>
@@ -236,9 +261,20 @@ app.get('/admin/dashboard', (req, res) => {
     </div>
   </div>
   
-  <button class="refresh-btn" onclick="loadCaptures()">🔄 Refresh Dashboard</button>
+  <div class="tab-container" style="margin-bottom: 30px;">
+    <div class="tab-buttons" style="display: flex; gap: 10px; margin-bottom: 20px;">
+      <button class="tab-btn active" data-tab="active" onclick="switchTab('active')">
+        📊 Active Tracking
+      </button>
+      <button class="tab-btn" data-tab="history" onclick="switchTab('history')">
+        📚 History
+      </button>
+    </div>
+    <button class="refresh-btn" onclick="loadCaptures()">🔄 Refresh Dashboard</button>
+  </div>
   
-  <div id="captures" class="captures-grid"></div>
+  <div id="active-captures" class="captures-grid tab-content active"></div>
+  <div id="history-captures" class="captures-grid tab-content" style="display: none;"></div>
   
   <script>
     async function loadCaptures() {
@@ -254,29 +290,35 @@ app.get('/admin/dashboard', (req, res) => {
       
       try {
         const response = await fetch('/api/admin/all-captures');
-        const captures = await response.json();
+        const data = await response.json();
         
-        document.getElementById('totalCaptures').textContent = captures.length;
+        // Handle new data structure with active and stopped items
+        const activeCaptures = data.active || data; // Fallback for old structure
+        const stoppedCaptures = data.stopped || [];
+        
+        document.getElementById('totalCaptures').textContent = activeCaptures.length;
         
         const today = new Date().toDateString();
-        const todayCount = captures.filter(c => 
+        const todayCount = activeCaptures.filter(c => 
           new Date(c.timestamp).toDateString() === today
         ).length;
         document.getElementById('todayCaptures').textContent = todayCount;
-        document.getElementById('pendingChecks').textContent = captures.length;
+        document.getElementById('pendingChecks').textContent = activeCaptures.length;
         
-        const container = document.getElementById('captures');
-        if (captures.length === 0) {
-          container.innerHTML = \`
+        // Populate active captures tab
+        const activeContainer = document.getElementById('active-captures');
+        if (activeCaptures.length === 0) {
+          activeContainer.innerHTML = \`
             <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #94a3b8;">
-              <h3>🦉 No captures yet!</h3>
+              <h3>🦉 No active captures yet!</h3>
               <p>Waiting for users to capture their first prices...</p>
             </div>
           \`;
-          return;
         }
         
-        container.innerHTML = captures.map(capture => \`
+        // Populate active captures
+        if (activeCaptures.length > 0) {
+          let activeHtml = activeCaptures.map(capture => \`
           <div class="capture-card">
             \${capture.screenshot ? \`
               <div style="margin-bottom: 15px;">
@@ -319,6 +361,57 @@ app.get('/admin/dashboard', (req, res) => {
             </div>
           </div>
         \`).join('');
+          activeContainer.innerHTML = activeHtml;
+        }
+        
+        // Populate history captures tab
+        const historyContainer = document.getElementById('history-captures');
+        if (stoppedCaptures.length === 0) {
+          historyContainer.innerHTML = \`
+            <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #94a3b8;">
+              <h3>📚 No stopped trackings yet!</h3>
+              <p>Items moved to history will appear here...</p>
+            </div>
+          \`;
+        } else {
+          let historyHtml = stoppedCaptures.map(capture => \`
+          <div class="capture-card" style="opacity: 0.8; border: 1px solid #6c757d;">
+            \${capture.screenshot ? \`
+              <div style="margin-bottom: 15px;">
+                <img src="\${capture.screenshot}" 
+                     style="width: 100%; max-height: 200px; object-fit: cover; border-radius: 8px; cursor: pointer;" 
+                     onclick="openImageModal('\${capture.screenshot}')"
+                     title="Click to view full size">
+              </div>
+            \` : ''}
+            
+            <div class="capture-url">\${capture.url}</div>
+            <div class="capture-price">📌 \${capture.confirmedPrice}</div>
+            
+            <div class="capture-meta">
+              <span>User: \${capture.userId.substring(0, 8)}...</span>
+              <span>Started: \${new Date(capture.timestamp).toLocaleString()}</span>
+              <span style="color: #dc3545;">Stopped: \${capture.stoppedAt ? new Date(capture.stoppedAt).toLocaleString() : 'Unknown'}</span>
+            </div>
+            
+            <div class="notification-prefs">
+              \${(capture.notificationPrefs || []).map(pref => 
+                \`<span class="pref-tag" style="opacity: 0.6;">\${pref}</span>\`
+              ).join('')}
+            </div>
+            
+            <div style="font-size: 11px; color: #94a3b8; margin: 5px 0;">
+              \${capture.userEmail ? \`📧 \${capture.userEmail}\` : ''}
+              \${capture.userPhone ? \`📱 \${capture.userPhone}\` : ''}
+            </div>
+            
+            <div style="background: #6c757d; color: white; padding: 8px; border-radius: 5px; text-align: center; font-weight: bold; margin-top: 10px;">
+              ⏹️ STOPPED - Admin View Only
+            </div>
+          </div>
+        \`).join('');
+          historyContainer.innerHTML = historyHtml;
+        }
         
         // Show success state
         refreshBtn.innerHTML = '✅ Refreshed!';
@@ -339,7 +432,7 @@ app.get('/admin/dashboard', (req, res) => {
         
       } catch (error) {
         console.error('Failed to load captures:', error);
-        document.getElementById('captures').innerHTML = \`
+        document.getElementById('active-captures').innerHTML = \`
           <div style="grid-column: 1 / -1; text-align: center; padding: 40px; color: #ef4444;">
             <h3>❌ Connection Error</h3>
             <p>Could not connect to backend. Make sure the server is running.</p>
@@ -410,6 +503,16 @@ app.get('/admin/dashboard', (req, res) => {
     function logout() {
       document.cookie = 'admin_session=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
       window.location.href = '/admin';
+    }
+    
+    function switchTab(tabName) {
+      // Remove active class from all tab buttons and content
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+      
+      // Add active class to clicked tab button and corresponding content
+      document.querySelector(\`[data-tab="\${tabName}"]\`).classList.add('active');
+      document.getElementById(\`\${tabName}-captures\`).classList.add('active');
     }
     
     loadCaptures();
@@ -615,28 +718,70 @@ app.get('/api/test-debug', (req, res) => {
   });
 });
 
-// User endpoint to get their captures only
+// User endpoint to get their captures (active by default, history if requested)
 app.get('/api/user-captures/:userId', (req, res) => {
   const userId = req.params.userId;
+  const includeHistory = req.query.history === 'true';
   console.log('=== USER CAPTURES ENDPOINT ===');
   console.log('Requested userId:', userId);
+  console.log('Include history:', includeHistory);
   
-  // Get active captures for this specific user
-  const userCaptures = database.captures.filter(capture => {
-    const isActive = !capture.status || 
-                     capture.status === 'monitoring' || 
-                     capture.status === 'active' || 
-                     (capture.status !== 'stopped' && capture.status !== 'deleted');
+  let userCaptures;
+  
+  if (includeHistory) {
+    // Get ONLY explicitly stopped captures (must have stoppedAt timestamp)
+    userCaptures = database.captures.filter(capture => {
+      const isExplicitlyStopped = capture.status === 'stopped' && capture.stoppedAt;
+      const isThisUser = capture.userId === userId;
+      console.log(`Checking capture ${capture.id}: status=${capture.status}, stoppedAt=${capture.stoppedAt}, isThisUser=${isThisUser}`);
+      return isExplicitlyStopped && isThisUser;
+    });
+    
+    // Sort by most recent stopped first (when they were stopped, not when created)
+    const sortedCaptures = userCaptures
+      .sort((a, b) => new Date(b.stoppedAt).getTime() - new Date(a.stoppedAt).getTime());
+    
+    console.log('User history found:', userCaptures.length, 'explicitly stopped items');
+    console.log('History items:', userCaptures.map(c => ({ id: c.id, status: c.status, stoppedAt: c.stoppedAt })));
+    res.json(sortedCaptures);
+  } else {
+    // Get ONLY active captures (must NOT be stopped and must NOT have stoppedAt timestamp)
+    userCaptures = database.captures.filter(capture => {
+      const isNotStopped = capture.status !== 'stopped' && !capture.stoppedAt;
+      const isThisUser = capture.userId === userId;
+      console.log(`Checking capture ${capture.id}: status=${capture.status}, stoppedAt=${capture.stoppedAt}, isThisUser=${isThisUser}, isNotStopped=${isNotStopped}`);
+      return isNotStopped && isThisUser;
+    });
+    
+    // Sort by most recent first - NO LIMIT (backend can handle many captures per user)
+    const sortedCaptures = userCaptures
+      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+    
+    console.log('User active captures found:', userCaptures.length, 'total, returning all for admin monitoring');
+    console.log('Active items:', userCaptures.map(c => ({ id: c.id, status: c.status, stoppedAt: c.stoppedAt })));
+    res.json(sortedCaptures);
+  }
+});
+
+// User endpoint to get their stopped/historical captures
+app.get('/api/user-history/:userId', (req, res) => {
+  const userId = req.params.userId;
+  console.log('=== USER HISTORY ENDPOINT ===');
+  console.log('Requested userId for history:', userId);
+  
+  // Get stopped captures for this specific user
+  const userHistory = database.captures.filter(capture => {
+    const isStopped = capture.status === 'stopped';
     const isThisUser = capture.userId === userId;
-    return isActive && isThisUser;
+    return isStopped && isThisUser;
   });
   
-  // Sort by most recent first - NO LIMIT (backend can handle many captures per user)
-  const sortedCaptures = userCaptures
-    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+  // Sort by most recent stopped first
+  const sortedHistory = userHistory
+    .sort((a, b) => new Date(b.stoppedAt || b.timestamp).getTime() - new Date(a.stoppedAt || a.timestamp).getTime());
   
-  console.log('User captures found:', userCaptures.length, 'total, returning all for admin monitoring');
-  res.json(sortedCaptures);
+  console.log('User history found:', sortedHistory.length, 'stopped items');
+  res.json(sortedHistory);
 });
 
 // Stop tracking endpoint - removes from both user view and admin dashboard
@@ -663,6 +808,111 @@ app.post('/api/stop-tracking/:captureId', (req, res) => {
   }
 });
 
+// Reactivate tracking endpoint - move stopped item back to active
+app.post('/api/reactivate-tracking/:captureId', (req, res) => {
+  const captureId = req.params.captureId;
+  console.log('=== REACTIVATE TRACKING ENDPOINT ===');
+  console.log('Reactivate tracking capture ID:', captureId);
+  
+  // Find and reactivate capture
+  const captureIndex = database.captures.findIndex(capture => capture.id === captureId);
+  
+  if (captureIndex !== -1) {
+    const capture = database.captures[captureIndex];
+    if (capture.status === 'stopped') {
+      // Remove stopped status and timestamp
+      delete capture.status;
+      delete capture.stoppedAt;
+      
+      // Save to database
+      saveDatabase();
+      
+      console.log('Capture reactivated:', captureId);
+      res.json({ success: true, message: 'Tracking reactivated successfully' });
+    } else {
+      console.log('Capture is not stopped:', captureId);
+      res.status(400).json({ success: false, message: 'Capture is not in stopped state' });
+    }
+  } else {
+    console.log('Capture not found:', captureId);
+    res.status(404).json({ success: false, message: 'Capture not found' });
+  }
+});
+
+// Delete capture endpoint - permanently remove capture
+app.delete('/api/delete-capture/:captureId', (req, res) => {
+  const captureId = req.params.captureId;
+  console.log('=== DELETE CAPTURE ENDPOINT ===');
+  console.log('Delete capture ID:', captureId);
+  
+  // Find and delete capture
+  const captureIndex = database.captures.findIndex(capture => capture.id === captureId);
+  
+  if (captureIndex !== -1) {
+    // Remove from database
+    const deletedCapture = database.captures.splice(captureIndex, 1)[0];
+    
+    // Save to database
+    saveDatabase();
+    
+    console.log('Capture permanently deleted:', captureId);
+    res.json({ 
+      success: true, 
+      message: 'Capture permanently deleted',
+      deletedCapture: deletedCapture 
+    });
+  } else {
+    console.log('Capture not found:', captureId);
+    res.status(404).json({ success: false, message: 'Capture not found' });
+  }
+});
+
+// Generate unique user account number endpoint
+app.get('/api/generate-user-id', (req, res) => {
+  console.log('=== GENERATE USER ID ENDPOINT ===');
+  
+  let attempts = 0;
+  let newUserId;
+  
+  // Keep generating until we find a unique one (with safety limit)
+  do {
+    const timestamp = Date.now().toString();
+    const randomPart = Math.random().toString(36).substr(2, 6).toUpperCase();
+    newUserId = 'PO' + timestamp.substr(-8) + randomPart; // PO + 8 digits + 6 letters
+    attempts++;
+  } while (database.captures.some(capture => capture.userId === newUserId) && attempts < 100);
+  
+  if (attempts >= 100) {
+    return res.status(500).json({ success: false, message: 'Failed to generate unique user ID' });
+  }
+  
+  console.log('Generated unique user ID:', newUserId, 'after', attempts, 'attempts');
+  res.json({ success: true, userId: newUserId });
+});
+
+// Generate unique capture ID endpoint
+app.get('/api/generate-capture-id', (req, res) => {
+  console.log('=== GENERATE CAPTURE ID ENDPOINT ===');
+  
+  let attempts = 0;
+  let newCaptureId;
+  
+  // Keep generating until we find a unique one (with safety limit)
+  do {
+    const timestamp = Date.now().toString();
+    const randomPart = Math.random().toString(36).substr(2, 8).toUpperCase();
+    newCaptureId = 'CAP' + timestamp.substr(-10) + randomPart; // CAP + 10 digits + 8 letters
+    attempts++;
+  } while (database.captures.some(capture => capture.id === newCaptureId) && attempts < 100);
+  
+  if (attempts >= 100) {
+    return res.status(500).json({ success: false, message: 'Failed to generate unique capture ID' });
+  }
+  
+  console.log('Generated unique capture ID:', newCaptureId, 'after', attempts, 'attempts');
+  res.json({ success: true, captureId: newCaptureId });
+});
+
 app.get('/api/admin/all-captures', (req, res) => {
   console.log('=== ADMIN ENDPOINT CALLED ===');
   console.log('Current database.captures length:', database.captures.length);
@@ -673,19 +923,35 @@ app.get('/api/admin/all-captures', (req, res) => {
     console.log(`${index + 1}. ID: ${capture.id}, URL: ${capture.url}, Price: ${capture.confirmedPrice}, Status: ${capture.status || 'monitoring'}, Created: ${capture.timestamp}`);
   });
   
-  // Return ALL active trackings (anything that's not explicitly stopped/deleted)
+  // Separate active and stopped items for admin view
   const activeCaptures = database.captures.filter(capture => {
     // Include anything that doesn't have a status OR has monitoring/active status
     const isActive = !capture.status || 
                      capture.status === 'monitoring' || 
                      capture.status === 'active' || 
-                     capture.status !== 'stopped' && capture.status !== 'deleted';
+                     (capture.status !== 'stopped' && capture.status !== 'deleted');
     return isActive;
   });
   
-  console.log('Returning active captures:', activeCaptures.length);
+  const stoppedCaptures = database.captures.filter(capture => {
+    return capture.status === 'stopped';
+  });
   
-  res.json(activeCaptures);
+  // Sort stopped items by most recent first
+  const sortedStoppedCaptures = stoppedCaptures.sort((a, b) => {
+    return new Date(b.stoppedAt || b.timestamp).getTime() - new Date(a.stoppedAt || a.timestamp).getTime();
+  });
+  
+  console.log('Returning active captures:', activeCaptures.length);
+  console.log('Returning stopped captures:', sortedStoppedCaptures.length);
+  
+  // Return both active and historical for admin monitoring
+  res.json({
+    active: activeCaptures,
+    stopped: sortedStoppedCaptures,
+    totalActive: activeCaptures.length,
+    totalStopped: sortedStoppedCaptures.length
+  });
 });
 
 // Debug endpoint to check database status
